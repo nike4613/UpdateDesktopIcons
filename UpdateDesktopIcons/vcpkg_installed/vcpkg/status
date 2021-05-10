@@ -1,9 +1,0 @@
-Package: wil
-Version: 2021-02-04
-Architecture: x64-windows
-Multi-Arch: same
-Abi: 3548abca4a394a5490a0db3fcdede8b37abac655
-Description: The Windows Implementation Libraries (WIL) is a header-only C++ library created to make life easier for developers on Windows through readable type-safe C++ interfaces for common Windows coding patterns.
-Type: Port
-Status: install ok installed
-

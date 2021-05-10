@@ -5,6 +5,11 @@ VisualStudioVersion = 16.0.31220.234
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UpdateDesktopIcons", "UpdateDesktopIcons\UpdateDesktopIcons.vcxproj", "{9517AAAA-A4F3-4E2A-AADE-9635BBAA9424}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{48AFB445-C481-4A5F-A91B-3FD91D3C7BE5}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
