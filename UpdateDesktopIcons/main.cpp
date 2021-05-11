@@ -1,4 +1,5 @@
 ﻿#include "pch.h"
+#include "priv.h"
 
 using namespace winrt::Windows::Foundation;
 using namespace winrt::Windows::Storage;
@@ -23,13 +24,9 @@ bool FolderHasReparsePoint(winrt::hstring const& folderName)
 
 void configure_backup_priv()
 {
-    wil::unique_handle handle;
-    THROW_IF_WIN32_BOOL_FALSE(OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &handle));
-
-    TOKEN_PRIVILEGES priv{ 1, {} };
-    THROW_IF_WIN32_BOOL_FALSE(LookupPrivilegeValue(nullptr, SE_BACKUP_NAME, &priv.Privileges[0].Luid));
-    priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-    THROW_IF_WIN32_BOOL_FALSE(AdjustTokenPrivileges(handle.get(), false, &priv, sizeof(TOKEN_PRIVILEGES), nullptr, nullptr));
+    priv::context ctx;
+    ctx.enable(SE_BACKUP_NAME);
+    ctx.enable(SE_RESTORE_NAME);
 }
 
 void do_main(winrt::hstring const& folderName)

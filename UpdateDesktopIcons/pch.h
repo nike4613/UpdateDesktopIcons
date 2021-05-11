@@ -13,3 +13,4 @@
 
 #include <span>
 #include <ranges>
+#include <optional>
