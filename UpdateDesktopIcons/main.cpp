@@ -1,40 +1,15 @@
 ﻿#include "pch.h"
 #include "priv.h"
+#include "reparse.h"
 
 using namespace winrt::Windows::Foundation;
 using namespace winrt::Windows::Storage;
 
-
-bool FolderHasReparsePoint(wil::unique_handle const& fileHandle)
+void do_main(std::wstring const& folderName)
 {
-    BY_HANDLE_FILE_INFORMATION info{};
-    THROW_IF_WIN32_BOOL_FALSE(GetFileInformationByHandle(fileHandle.get(), &info));
-    return (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-}
-
-bool FolderHasReparsePoint(winrt::hstring const& folderName)
-{
-    wil::unique_handle handle{
-        CreateFile(folderName.c_str(), GENERIC_READ, FILE_SHARE_READ, 
-            nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, 0)
-    };
-    THROW_LAST_ERROR_IF_MSG(!handle.is_valid(), "Folder: '%ws'", folderName.c_str());
-    return FolderHasReparsePoint(handle);
-}
-
-void configure_backup_priv()
-{
-    priv::context ctx;
-    ctx.enable(SE_BACKUP_NAME);
-    ctx.enable(SE_RESTORE_NAME);
-}
-
-void do_main(winrt::hstring const& folderName)
-{
-    configure_backup_priv();
-
-    auto result = FolderHasReparsePoint(folderName);
-    if (result)
+    reparse::set_needed_privilege();
+    reparse::reparse_folder folder{ folderName };
+    if (folder.is_valid())
     {
         std::fputws(L"Folder is a reparse point.\r\n", stdout);
     }
