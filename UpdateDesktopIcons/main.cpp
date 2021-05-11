@@ -16,6 +16,12 @@ void do_main(std::wstring const& folderName)
         if (folder.is_junction())
         {
             std::fputws(L"Folder is a mount point/junction.\r\n", stdout);
+            auto const& [subs, print] = folder.get_junction_target();
+            std::fputws(L"SubstituteName: ", stdout);
+            std::fputws(subs.c_str(), stdout);
+            std::fputws(L"\r\nPrintName: ", stdout);
+            std::fputws(print.c_str(), stdout);
+            std::fputws(L"\r\n", stdout);
         }
     }
 }

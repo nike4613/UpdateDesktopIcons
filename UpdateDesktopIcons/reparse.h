@@ -20,6 +20,12 @@ namespace reparse
 
         bool is_junction();
 
+        void set_junction_target(std::wstring_view subsName, std::wstring_view printName);
+        struct junction_target {
+            std::wstring substitute_name;
+            std::wstring print_name;
+        };
+        junction_target get_junction_target();
     private:
         DWORD get_reparse_buffer(_Out_ REPARSE_GUID_DATA_BUFFER* buffer, DWORD bufferSize, bool throwIfTooSmall);
     };

@@ -67,6 +67,58 @@ bool reparse::reparse_folder::is_junction()
     return buffer.ReparseTag == IO_REPARSE_TAG_MOUNT_POINT;
 }
 
+struct REPARSE_DATA_BUFFER {
+    ULONG  ReparseTag;
+    USHORT ReparseDataLength;
+    USHORT Reserved;
+    union {
+        struct {
+            USHORT SubstituteNameOffset;
+            USHORT SubstituteNameLength;
+            USHORT PrintNameOffset;
+            USHORT PrintNameLength;
+            ULONG Flags;
+            BYTE PathBuffer[1];
+        } SymbolicLinkReparseBuffer;
+        struct {
+            USHORT SubstituteNameOffset;
+            USHORT SubstituteNameLength;
+            USHORT PrintNameOffset;
+            USHORT PrintNameLength;
+            BYTE PathBuffer[1];
+        } MountPointReparseBuffer;
+        struct {
+            UCHAR  DataBuffer[1];
+        } GenericReparseBuffer;
+    };
+};
+
+reparse::reparse_folder::junction_target reparse::reparse_folder::get_junction_target()
+{
+    auto dataBuffer = std::make_unique<char[]>(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+    auto guidData = new(dataBuffer.get()) REPARSE_GUID_DATA_BUFFER();
+    auto data = new(dataBuffer.get()) REPARSE_DATA_BUFFER();
+    // i think this is technically UB, since now 2 objects have the same addr
+
+    auto realSize = get_reparse_buffer(guidData, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, true);
+    if (data->ReparseTag != IO_REPARSE_TAG_MOUNT_POINT)
+        throw std::runtime_error("Reparse point not a moint point");
+
+    auto subsView = std::wstring_view{
+        reinterpret_cast<wchar_t const*>(&data->MountPointReparseBuffer.PathBuffer[0] + data->MountPointReparseBuffer.SubstituteNameOffset),
+        data->MountPointReparseBuffer.SubstituteNameLength / sizeof(wchar_t)
+    };
+    auto printView = std::wstring_view{
+        reinterpret_cast<wchar_t const*>(&data->MountPointReparseBuffer.PathBuffer[0] + data->MountPointReparseBuffer.PrintNameOffset),
+        data->MountPointReparseBuffer.PrintNameLength / sizeof(wchar_t)
+    };
+
+    return {
+        std::wstring{ subsView },
+        std::wstring{ printView }
+    };
+}
+
 DWORD reparse::reparse_folder::get_reparse_buffer(_Out_ REPARSE_GUID_DATA_BUFFER* buffer, DWORD bufferSize, bool throwIfTooSmall)
 {
     DWORD read;
