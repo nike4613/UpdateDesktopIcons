@@ -2,20 +2,21 @@
 #include "priv.h"
 #include "reparse.h"
 
-using namespace winrt::Windows::Foundation;
-using namespace winrt::Windows::Storage;
-
 void do_main(std::wstring const& folderName)
 {
     reparse::set_needed_privilege();
     reparse::reparse_folder folder{ folderName };
-    if (folder.is_valid())
+    if (!folder.is_valid())
     {
-        std::fputws(L"Folder is a reparse point.\r\n", stdout);
+        std::fputws(L"Folder is not a reparse point.\r\n", stdout);
     }
     else
     {
-        std::fputws(L"Folder is not a reparse point.\r\n", stdout);
+        std::fputws(L"Folder is a reparse point.\r\n", stdout);
+        if (folder.is_junction())
+        {
+            std::fputws(L"Folder is a mount point/junction.\r\n", stdout);
+        }
     }
 }
 
