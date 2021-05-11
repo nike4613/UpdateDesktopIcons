@@ -11,16 +11,35 @@ void reparse::set_needed_privilege()
     ctx.enable(SE_RESTORE_NAME);
 }
 
+namespace
+{
+    // requires null-terminated
+    wil::unique_handle try_get_file_handle(std::wstring_view path, bool readonly)
+    {
+        wil::unique_handle handle {
+            CreateFileW(path.data(), // we require null terminated input
+                readonly ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+                readonly ? FILE_SHARE_READ : FILE_SHARE_READ | FILE_SHARE_WRITE,
+                nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, 0)
+        };
+        THROW_LAST_ERROR_IF_MSG(!handle.is_valid(), "Folder: '%ws'", path.data());
+        return handle;
+    }
+}
+
 reparse::reparse_folder::reparse_folder(std::wstring const& path, bool readonly)
 {
-    wil::unique_handle handle{
-        CreateFileW(path.c_str(), 
-            readonly ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
-            readonly ? FILE_SHARE_READ : FILE_SHARE_READ | FILE_SHARE_WRITE,
-            nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, 0)
-    };
-    THROW_LAST_ERROR_IF_MSG(!handle.is_valid(), "Folder: '%ws'", path.c_str());
-    file = std::move(handle);
+    file = try_get_file_handle(path, readonly);
+}
+
+reparse::reparse_folder::reparse_folder(std::wstring_view path, bool readonly)
+{
+    std::wstring pathData;
+    if (path.data()[path.size()] != 0)
+    {
+        pathData = path; // force a copy to null terminate it
+    }
+    file = try_get_file_handle(pathData.size() != 0 ? std::wstring_view{ pathData } : path, readonly);
 }
 
 reparse::reparse_folder::reparse_folder(wil::unique_handle&& handle) noexcept

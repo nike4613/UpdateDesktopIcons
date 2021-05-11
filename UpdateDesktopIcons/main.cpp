@@ -2,7 +2,7 @@
 #include "priv.h"
 #include "reparse.h"
 
-void do_main(std::wstring const& folderName)
+void do_main(std::wstring_view folderName)
 {
     reparse::set_needed_privilege();
     reparse::reparse_folder folder{ folderName };

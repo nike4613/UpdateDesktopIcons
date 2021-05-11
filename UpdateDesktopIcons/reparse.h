@@ -10,6 +10,7 @@ namespace reparse
         wil::unique_handle file;
     public:
         explicit reparse_folder(std::wstring const& path, bool readonly = true);
+        explicit reparse_folder(std::wstring_view path, bool readonly = true);
         reparse_folder(wil::unique_handle&& handle) noexcept;
         reparse_folder(wil::unique_handle const& handle);
         reparse_folder(reparse_folder&& other) noexcept;
