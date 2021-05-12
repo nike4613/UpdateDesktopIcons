@@ -17,6 +17,7 @@ namespace reparse
         reparse_folder(reparse_folder const& other);
 
         DWORD attributes();
+        std::wstring full_path();
         bool is_valid();
 
         bool is_junction();

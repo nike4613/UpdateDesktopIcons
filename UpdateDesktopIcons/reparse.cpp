@@ -73,6 +73,18 @@ DWORD reparse::reparse_folder::attributes()
     return info.dwFileAttributes;
 }
 
+std::wstring reparse::reparse_folder::full_path()
+{
+    constexpr auto flags = FILE_NAME_NORMALIZED | VOLUME_NAME_NT;
+    auto const bufSize = GetFinalPathNameByHandleW(file.get(), nullptr, 0, flags);
+    THROW_LAST_ERROR_IF(bufSize == 0);
+    std::wstring path;
+    path.resize(bufSize - 1); // the returned value includes the null terminator
+    auto const result = GetFinalPathNameByHandleW(file.get(), path.data(), path.capacity(), flags);
+    THROW_LAST_ERROR_IF(result == 0);
+    return path;
+}
+
 bool reparse::reparse_folder::is_valid()
 {
     return file.is_valid() && (attributes() & FILE_ATTRIBUTE_REPARSE_POINT) != 0;

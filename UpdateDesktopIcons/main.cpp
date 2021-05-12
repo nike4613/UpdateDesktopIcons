@@ -26,7 +26,7 @@ void do_read(std::wstring_view folderName)
     }
 }
 
-winrt::Windows::Foundation::IAsyncAction do_write(std::wstring_view folderName, std::wstring_view newPath)
+void do_write(std::wstring_view folderName, std::wstring_view newPath)
 {
     reparse::set_needed_privilege();
     reparse::reparse_folder folder{ folderName, /* readonly */ false };
@@ -39,14 +39,9 @@ winrt::Windows::Foundation::IAsyncAction do_write(std::wstring_view folderName, 
         std::fputws(L"Changing junction target.\r\n", stdout);
     }
 
-    using namespace winrt::Windows::Storage;
+    auto fullName = reparse::reparse_folder{ newPath }.full_path();
 
-    auto folderFull = co_await StorageFolder::GetFolderFromPathAsync(newPath);
-
-    auto fullName = folderFull.Path();
-    auto newRealName = L"\\??\\" + fullName;
-
-    folder.set_junction_target(newRealName, fullName);
+    folder.set_junction_target(fullName, fullName);
 }
 
 int wmain(int argc, wchar_t const* const* argv) try
@@ -78,7 +73,7 @@ int wmain(int argc, wchar_t const* const* argv) try
     }
     else if (args.size() >= 3)
     {
-        do_write(args[1], args[2]).get();
+        do_write(args[1], args[2]);
     }
 
     return 0;
