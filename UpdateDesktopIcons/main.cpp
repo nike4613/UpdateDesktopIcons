@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "priv.h"
 #include "reparse.h"
+#include "IVirtualDesktop.h"
 
 void do_read(std::wstring_view folderName)
 {
@@ -40,8 +41,19 @@ void do_write(std::wstring_view folderName, std::wstring_view newPath)
     }
 
     auto fullName = reparse::reparse_folder{ newPath }.full_path();
+    //auto fullName = newPath;
 
-    folder.set_junction_target(fullName, fullName);
+    folder.set_junction_target(fullName, newPath);
+}
+
+void do_watch_vdesk()
+{
+    auto ishell = wil::CoCreateInstance<CImmersiveShell, IServiceProvider>(CLSCTX_LOCAL_SERVER);
+    
+    wil::com_ptr<IVirtualDesktopManagerInternal> vdmgr;
+    THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopManagerInternal>(__uuidof(CVirtualDesktopManagerInternal), vdmgr.put()));
+
+
 }
 
 int wmain(int argc, wchar_t const* const* argv) try
@@ -57,7 +69,8 @@ int wmain(int argc, wchar_t const* const* argv) try
         }
     });
 
-    winrt::init_apartment();
+    //winrt::init_apartment();
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     std::span<wchar_t const* const> const args(argv, argc);
 
@@ -69,7 +82,14 @@ int wmain(int argc, wchar_t const* const* argv) try
 
     if (args.size() == 2)
     {
-        do_read(args[1]);
+        if (std::wstring_view{ args[1] } == std::wstring_view{ L"vdesk" })
+        {
+            do_watch_vdesk();
+        }
+        else
+        {
+            do_read(args[1]);
+        }
     }
     else if (args.size() >= 3)
     {

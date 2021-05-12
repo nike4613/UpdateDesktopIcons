@@ -1,0 +1,75 @@
+import "oaidl.idl";
+import "ocidl.idl";
+import "ObjectArray.idl";
+import "ServProv.idl";
+
+// These are definitions for Windows internal interfaces.
+
+[
+    uuid("FF72FFDD-BE7E-43FC-9C03-AD81681E88E4"),
+    object
+]
+interface IVirtualDesktop : IUnknown
+{
+    HRESULT IsViewVisible([in] IUnknown* /* IApplicationView */ view);
+    HRESULT GetID([out] GUID* result);
+};
+
+typedef [v1_enum] enum _ADJACENT_DESKTOP
+{
+    ADJ_DESK_LEFT = 3,
+    ADJ_DESK_RIGHT = 4,
+} ADJACENT_DESKTOP;
+
+[
+    uuid("F31574D6-B682-4CDC-BD56-1827860ABEC6"),
+    object
+]
+interface IVirtualDesktopManagerInternal : IUnknown
+{
+    HRESULT GetCount([out] DWORD* result);
+    HRESULT MoveViewToDesktop([in] IUnknown* /* IApplicationView */ pView, [in] IVirtualDesktop* desktop);
+    HRESULT CanViewMoveDesktops([in] IUnknown* /* IApplicationView */ pView);
+    HRESULT GetCurrentDesktop([out] IVirtualDesktop** desktop);
+    HRESULT GetDesktops([out] IObjectArray** result);
+    HRESULT GetAdjacentDesktop([in] IVirtualDesktop* desktop, [in] ADJACENT_DESKTOP direction, [out] IVirtualDesktop** result);
+    HRESULT SwitchDesktop([in] IVirtualDesktop* desktop);
+    HRESULT CreateDesktopW([out] IVirtualDesktop** result);
+    HRESULT RemoveDesktop([in] IVirtualDesktop* pRemove, [in] IVirtualDesktop* fallback);
+    HRESULT FindDesktop([in] GUID* desktopId, [out] IVirtualDesktop** result);
+};
+
+[
+    uuid("C179334C-4295-40D3-BEA1-C654D965605A"),
+    object
+]
+interface IVirtualDesktopNotification : IUnknown
+{
+    HRESULT VirtualDesktopCreated([in] IVirtualDesktop* pDesktop);
+    HRESULT VirtualDesktopDestroyBegin([in] IVirtualDesktop* pDesktopDestroyed, [in] IVirtualDesktop* pDesktopFallback);
+    HRESULT VirtualDesktopDestroyFailed([in] IVirtualDesktop* pDesktopDestroyed, [in] IVirtualDesktop* pDesktopFallback);
+    HRESULT VirtualDesktopDestroyed([in] IVirtualDesktop* pDesktopDestroyed, [in] IVirtualDesktop* pDesktopFallback);
+    HRESULT ViewVirtualDesktopChanged([in] IUnknown* pView);
+    HRESULT CurrentVirtualDesktopChanged([in] IVirtualDesktop* pDesktopOld, [in] IVirtualDesktop* pDesktopNew);
+};
+
+[
+    uuid("0CD45E71-D927-4F15-8B0A-8FEF525337BF"),
+    object
+]
+interface IVirtualDesktopNotificationService : IUnknown
+{
+    HRESULT Register([in] IVirtualDesktopNotification* pNotification, [out] DWORD* cookie);
+    HRESULT Unregister(DWORD cookie);
+};
+
+[uuid("2790C2F1-3B96-455A-928B-8DA0D13887F6")]
+library VirtualDesktopInternalTypes
+{
+    [uuid("c5e0cdca-7b6e-41b2-9fc4-d93975cc467b")]
+    coclass CVirtualDesktopManagerInternal { [default] interface IVirtualDesktopManagerInternal; };
+    [uuid("a501fdec-4a09-464c-ae4e-1b9c21b84918")]
+    coclass CVirtualDesktopNotificationService { [default] interface IVirtualDesktopManagerInternal; };
+    [uuid("c2f03a33-21f5-47fa-b4bb-156362a2f239")]
+    coclass CImmersiveShell { interface IServiceProvider; };
+};

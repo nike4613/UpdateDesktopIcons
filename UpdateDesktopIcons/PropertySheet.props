@@ -1,16 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ImportGroup Label="PropertySheets" />
-  <PropertyGroup Label="UserMacros" />
-    <!--
-    To customize common C++/WinRT project properties: 
-    * right-click the project node
-    * expand the Common Properties item
-    * select the C++/WinRT property page
 
-    For more advanced scenarios, and complete documentation, please see:
-    https://github.com/Microsoft/cppwinrt/tree/master/nuget 
-    -->
-  <PropertyGroup />
-  <ItemDefinitionGroup />
+  <ItemGroup>
+    <Midl Update="IVirtualDesktop.idl">
+      <EnableWindowsRuntime>false</EnableWindowsRuntime>
+      <DisableReferences>true</DisableReferences>
+      <OutputDirectory>IDL</OutputDirectory>
+      
+      <AdditionalMetadataDirectories></AdditionalMetadataDirectories>
+      <MetadataFileName></MetadataFileName>
+      <MetadataFileName></MetadataFileName>
+      <AdditionalOptions></AdditionalOptions>
+      <HeaderFileName></HeaderFileName>
+      <DllDataFileName></DllDataFileName>
+      <InterfaceIdentifierFileName></InterfaceIdentifierFileName>
+      <ProxyFileName></ProxyFileName>
+    </Midl>
+  </ItemGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories >$(AdditionalIncludeDirectories);IDL</AdditionalIncludeDirectories >
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <PropertyGroup>
+    <ClCompileDependsOn>$(ClCompileDependsOn);AddIdlFiles</ClCompileDependsOn>
+  </PropertyGroup>
+  
+  <Target Name="AddIdlFiles" AfterTargets="Midl">
+    <ItemGroup>
+      <ClInclude Include="IDL\*.h" />
+      <!--<ClCompile Include="$(IntDir)IDL\*_i.c" />--> <!-- doesn't have PCH include in -->
+    </ItemGroup>
+  </Target>
+  
 </Project>
