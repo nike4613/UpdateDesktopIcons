@@ -51,9 +51,27 @@ void do_watch_vdesk()
     auto ishell = wil::CoCreateInstance<CImmersiveShell, IServiceProvider>(CLSCTX_LOCAL_SERVER);
     
     wil::com_ptr<IVirtualDesktopManagerInternal> vdmgr;
-    THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopManagerInternal>(__uuidof(CVirtualDesktopManagerInternal), vdmgr.put()));
+    THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopManagerInternal>(__uuidof(CVirtualDesktopManagerInternal), &vdmgr));
 
+    wil::com_ptr<IObjectArray> vdesks;
+    THROW_IF_FAILED(vdmgr->GetDesktops(&vdesks));
 
+    UINT count;
+    THROW_IF_FAILED(vdesks->GetCount(&count));
+    printf("%d Desktops:\n", count);
+    for (UINT i = 0; i < count; i++)
+    {
+        wil::com_ptr<IVirtualDesktop> desk;
+        THROW_IF_FAILED(vdesks->GetAt(i, __uuidof(IVirtualDesktop), desk.put_void()));
+
+        GUID guid;
+        THROW_IF_FAILED(desk->GetID(&guid));
+
+        printf("Guid = {%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
+            guid.Data1, guid.Data2, guid.Data3,
+            guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
+            guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
+    }
 }
 
 int wmain(int argc, wchar_t const* const* argv) try
@@ -70,13 +88,14 @@ int wmain(int argc, wchar_t const* const* argv) try
     });
 
     //winrt::init_apartment();
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    auto coInit = wil::CoInitializeEx(COINIT_MULTITHREADED);
 
     std::span<wchar_t const* const> const args(argv, argc);
 
     if (args.size() < 2)
     {
-        std::fputws(L"Usage: app <folder to operate on> [<new target>].\r\n", stderr);
+        std::fputws(L"Usage: app <folder to operate on> [<new target>]\r\n", stderr);
+        std::fputws(L"       app vdesk\r\n", stderr);
         return -1;
     }
 
