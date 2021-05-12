@@ -112,9 +112,25 @@ struct REPARSE_DATA_BUFFER {
     };
 };
 
+namespace
+{
+    auto f_get_junction_target(REPARSE_DATA_BUFFER const* data)
+    {
+        auto subsView = std::wstring_view{
+            reinterpret_cast<wchar_t const*>(&data->MountPointReparseBuffer.PathBuffer[0] + data->MountPointReparseBuffer.SubstituteNameOffset),
+            data->MountPointReparseBuffer.SubstituteNameLength / sizeof(wchar_t)
+        };
+        auto printView = std::wstring_view{
+            reinterpret_cast<wchar_t const*>(&data->MountPointReparseBuffer.PathBuffer[0] + data->MountPointReparseBuffer.PrintNameOffset),
+            data->MountPointReparseBuffer.PrintNameLength / sizeof(wchar_t)
+        };
+        return std::make_pair(subsView, printView);
+    }
+}
+
 reparse::reparse_folder::junction_target reparse::reparse_folder::get_junction_target()
 {
-    auto dataBuffer = std::make_unique<char[]>(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
+    auto dataBuffer = std::make_unique<BYTE[]>(MAXIMUM_REPARSE_DATA_BUFFER_SIZE);
     auto guidData = new(dataBuffer.get()) REPARSE_GUID_DATA_BUFFER();
     auto data = new(dataBuffer.get()) REPARSE_DATA_BUFFER();
     // i think this is technically UB, since now 2 objects have the same addr
@@ -123,14 +139,7 @@ reparse::reparse_folder::junction_target reparse::reparse_folder::get_junction_t
     if (data->ReparseTag != IO_REPARSE_TAG_MOUNT_POINT)
         throw std::runtime_error("Reparse point not a moint point");
 
-    auto subsView = std::wstring_view{
-        reinterpret_cast<wchar_t const*>(&data->MountPointReparseBuffer.PathBuffer[0] + data->MountPointReparseBuffer.SubstituteNameOffset),
-        data->MountPointReparseBuffer.SubstituteNameLength / sizeof(wchar_t)
-    };
-    auto printView = std::wstring_view{
-        reinterpret_cast<wchar_t const*>(&data->MountPointReparseBuffer.PathBuffer[0] + data->MountPointReparseBuffer.PrintNameOffset),
-        data->MountPointReparseBuffer.PrintNameLength / sizeof(wchar_t)
-    };
+    auto [subsView, printView] = f_get_junction_target(data);
 
     return {
         std::wstring{ subsView },
@@ -153,4 +162,62 @@ DWORD reparse::reparse_folder::get_reparse_buffer(_Out_ REPARSE_GUID_DATA_BUFFER
     }
 
     return read;
+}
+
+namespace
+{
+    auto build_junction_buffer(std::wstring_view subsName, std::wstring_view printName)
+    {
+        auto const bufferHeaderSize = FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer);
+        auto const dataHeaderSize = FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer) - bufferHeaderSize;
+        auto const subsSize = subsName.size() * sizeof(wchar_t);
+        auto const printSize = printName.size() * sizeof(wchar_t);
+        auto const dataSize = dataHeaderSize + subsSize + printSize + 4 /* null bytes */;
+        auto const fullSize = dataSize + bufferHeaderSize;
+
+        if (fullSize > MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+        {
+            throw std::runtime_error("Generated buffer too large");
+        }
+
+        auto bufferStorage = std::make_unique<BYTE[]>(fullSize);
+        std::memset(bufferStorage.get(), 0, fullSize);
+        auto dataPtr = new(bufferStorage.get()) REPARSE_DATA_BUFFER
+        {
+            IO_REPARSE_TAG_MOUNT_POINT,
+            (USHORT)dataSize,
+            0
+        };
+        dataPtr->MountPointReparseBuffer = {
+            /* substitute name offset */ 0,
+            /* substitute name size */  (USHORT)subsSize,
+            /* print name offset */     (USHORT)(subsSize + 2), // +2 for the null char
+            /* print name size */       (USHORT)printSize
+        };
+        // copy in substitute name data
+        std::memcpy(&dataPtr->MountPointReparseBuffer.PathBuffer[0], subsName.data(), subsSize);
+        // copy in print name data
+        std::memcpy(&dataPtr->MountPointReparseBuffer.PathBuffer[subsSize + 2], printName.data(), printSize);
+
+#if _DEBUG
+        auto [subsView, printView] = f_get_junction_target(dataPtr);
+        assert(subsView == subsName);
+        assert(printView == printName);
+#endif
+
+        auto deleter = [storage = std::move(bufferStorage)](auto*) mutable
+        {
+            storage.reset(nullptr);
+        };
+        return std::make_pair(std::unique_ptr<REPARSE_DATA_BUFFER, decltype(deleter)>{ dataPtr, std::move(deleter) }, fullSize);
+    }
+}
+
+void reparse::reparse_folder::set_junction_target(std::wstring_view substituteName, std::wstring_view printName)
+{
+    auto [junctionBuf_, size] = std::move(build_junction_buffer(substituteName, printName));
+    auto junctionBuf = std::move(junctionBuf_);
+
+    THROW_IF_WIN32_BOOL_FALSE(DeviceIoControl(file.get(), FSCTL_SET_REPARSE_POINT,
+        junctionBuf.get(), size, nullptr, 0, nullptr, nullptr));
 }

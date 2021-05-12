@@ -2,7 +2,7 @@
 #include "priv.h"
 #include "reparse.h"
 
-void do_main(std::wstring_view folderName)
+void do_read(std::wstring_view folderName)
 {
     reparse::set_needed_privilege();
     reparse::reparse_folder folder{ folderName };
@@ -26,6 +26,29 @@ void do_main(std::wstring_view folderName)
     }
 }
 
+winrt::Windows::Foundation::IAsyncAction do_write(std::wstring_view folderName, std::wstring_view newPath)
+{
+    reparse::set_needed_privilege();
+    reparse::reparse_folder folder{ folderName, /* readonly */ false };
+    if (!folder.is_valid())
+    {
+        std::fputws(L"Making folder a junction.\r\n", stdout);
+    }
+    else
+    {
+        std::fputws(L"Changing junction target.\r\n", stdout);
+    }
+
+    using namespace winrt::Windows::Storage;
+
+    auto folderFull = co_await StorageFolder::GetFolderFromPathAsync(newPath);
+
+    auto fullName = folderFull.Path();
+    auto newRealName = L"\\??\\" + fullName;
+
+    folder.set_junction_target(newRealName, fullName);
+}
+
 int wmain(int argc, wchar_t const* const* argv) try
 {
     wil::SetResultLoggingCallback([](wil::FailureInfo const& failure) noexcept
@@ -43,13 +66,20 @@ int wmain(int argc, wchar_t const* const* argv) try
 
     std::span<wchar_t const* const> const args(argv, argc);
 
-    if (args.size() != 2)
+    if (args.size() < 2)
     {
-        std::fputws(L"Please specify a folder path.\r\n", stderr);
+        std::fputws(L"Usage: app <folder to operate on> [<new target>].\r\n", stderr);
         return -1;
     }
 
-    do_main(args[1]);
+    if (args.size() == 2)
+    {
+        do_read(args[1]);
+    }
+    else if (args.size() >= 3)
+    {
+        do_write(args[1], args[2]).get();
+    }
 
     return 0;
 }
