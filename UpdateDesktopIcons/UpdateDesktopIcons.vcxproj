@@ -98,11 +98,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="com.h" />
+    <ClInclude Include="explore.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="priv.h" />
     <ClInclude Include="reparse.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="explore.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

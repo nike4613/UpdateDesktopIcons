@@ -18,3 +18,5 @@
 #include <string_view>
 #include <map>
 #include <utility>
+#include <memory>
+#include <functional>

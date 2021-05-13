@@ -3,6 +3,7 @@
 #include "reparse.h"
 #include "IVirtualDesktop.h"
 #include "com.h"
+#include "explore.h"
 
 void do_read(std::wstring_view folderName)
 {
@@ -126,6 +127,17 @@ void do_watch_vdesk()
     auto unused = getc(stdin);
 }
 
+void do_explore()
+{
+    explore::explorer_tracker tracker;
+
+    std::fputws(L"Tracking restarts of Explorer.\n", stdout);
+    tracker.set_restart_handler([] { std::fputws(L"Explorer restarted.\n", stdout); });
+    tracker.start_tracking();
+    std::fputws(L"Press enter to exit.\n", stdout);
+    auto unused = getc(stdin);
+}
+
 int wmain(int argc, wchar_t const* const* argv) try
 {
     wil::SetResultLoggingCallback([](wil::FailureInfo const& failure) noexcept
@@ -156,6 +168,10 @@ int wmain(int argc, wchar_t const* const* argv) try
         if (std::wstring_view{ args[1] } == std::wstring_view{ L"vdesk" })
         {
             do_watch_vdesk();
+        }
+        else if (std::wstring_view{ args[1] } == std::wstring_view{ L"explore" })
+        {
+            do_explore();
         }
         else
         {
