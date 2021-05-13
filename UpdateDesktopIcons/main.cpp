@@ -56,9 +56,13 @@ void do_watch_vdesk()
     wil::com_ptr<IObjectArray> vdesks;
     THROW_IF_FAILED(vdmgr->GetDesktops(&vdesks));
 
+    std::vector<wil::com_ptr<IVirtualDesktop>> vdesktopObjOwner;
+    std::map<IVirtualDesktop*, UINT> indexMap;
+
     UINT count;
     THROW_IF_FAILED(vdesks->GetCount(&count));
     printf("%d Desktops:\n", count);
+    vdesktopObjOwner.reserve(count);
     for (UINT i = 0; i < count; i++)
     {
         wil::com_ptr<IVirtualDesktop> desk;
@@ -67,11 +71,59 @@ void do_watch_vdesk()
         GUID guid;
         THROW_IF_FAILED(desk->GetID(&guid));
 
-        printf("Guid = {%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
+        printf("%d { Guid = {%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX} }\n",
+            i,
             guid.Data1, guid.Data2, guid.Data3,
             guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
             guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
+
+        indexMap[desk.get()] = i;
+        vdesktopObjOwner.emplace_back(std::move(desk));
     }
+
+    wil::com_ptr<IVirtualDesktopNotificationService> vdnotifService;
+    THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopNotificationService>(__uuidof(CVirtualDesktopNotificationService), &vdnotifService));
+    
+    struct VDNotifReciever : winrt::implements<VDNotifReciever, IVirtualDesktopNotification>
+    {
+        std::vector<wil::com_ptr<IVirtualDesktop>> deskOwner;
+        std::map<IVirtualDesktop*, UINT> indexMap;
+
+        VDNotifReciever(std::vector<wil::com_ptr<IVirtualDesktop>> vec, std::map<IVirtualDesktop*, UINT> map)
+            : deskOwner{ std::move(vec) }, indexMap{ std::move(map) }
+        { }
+
+        HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyBegin(IVirtualDesktop*, IVirtualDesktop*) noexcept override { return S_OK; }
+        HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyFailed(IVirtualDesktop*, IVirtualDesktop*) noexcept override { return S_OK; }
+        HRESULT STDMETHODCALLTYPE ViewVirtualDesktopChanged(IUnknown*) noexcept override { return S_OK; }
+        HRESULT STDMETHODCALLTYPE VirtualDesktopCreated(IVirtualDesktop*) noexcept override { return S_OK;  }
+        HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyed(IVirtualDesktop*, IVirtualDesktop*) noexcept override { return S_OK; }
+
+        HRESULT STDMETHODCALLTYPE CurrentVirtualDesktopChanged(IVirtualDesktop* pDesktopOld, IVirtualDesktop* pDesktopNew) noexcept override try
+        {
+            wil::com_ptr<IVirtualDesktop> from{ pDesktopOld };
+            wil::com_ptr<IVirtualDesktop> to{ pDesktopNew };
+
+            auto fromIdx = indexMap[from.get()];
+            auto toIdx = indexMap[to.get()];
+
+            printf("Changed from %d to %d\n", fromIdx, toIdx);
+
+            return S_OK;
+        }
+        CATCH_RETURN();
+    };
+
+    using unique_vd_reg_cookie = wil::unique_com_token<IVirtualDesktopNotificationService, DWORD,
+        decltype(&IVirtualDesktopNotificationService::Unregister), &IVirtualDesktopNotificationService::Unregister>;
+
+    auto reciever = wil::com_ptr<IVirtualDesktopNotification>(winrt::make<VDNotifReciever>(vdesktopObjOwner, indexMap).get());
+    unique_vd_reg_cookie regCookie;
+    regCookie.associate(vdnotifService.get());
+    THROW_IF_FAILED(vdnotifService->Register(reciever.get(), &regCookie));
+
+    printf("Press enter to exit.");
+    getc(stdin);
 }
 
 int wmain(int argc, wchar_t const* const* argv) try
