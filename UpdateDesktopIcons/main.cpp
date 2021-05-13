@@ -118,14 +118,17 @@ void do_watch_vdesk()
         CATCH_RETURN();
     };
 
-    using unique_vd_reg_cookie = wil::unique_com_token<IVirtualDesktopNotificationService, DWORD,
-        decltype(&IVirtualDesktopNotificationService::Unregister), &IVirtualDesktopNotificationService::Unregister>;
+    /*using unique_vd_reg_cookie = wil::unique_com_token<IVirtualDesktopNotificationService, DWORD,
+        decltype(&IVirtualDesktopNotificationService::Unregister), &IVirtualDesktopNotificationService::Unregister>;*/
 
     /*wil::com_ptr<IVirtualDesktopNotification> reciever;
     reciever.attach(winrt::make<VDNotifReciever>(vdesktopObjOwner, indexMap).detach());*/
     auto reciever = VDNotifReciever::make<>(vdesktopObjOwner, indexMap);
+    /*
     unique_vd_reg_cookie regCookie{ vdnotifService.get() };
     THROW_IF_FAILED(vdnotifService->Register(reciever.get(), &regCookie));
+    */
+    auto cookie = com::register_virtual_desktop_notification(vdnotifService, reciever);
 
     std::fputws(L"Now printing all virtual desktop changes.\n", stdout);
     std::fputws(L"Press enter to exit.\n", stdout);

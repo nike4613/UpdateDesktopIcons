@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <memory>
 
 #include <wil/com.h>
 #include <wil/cppwinrt.h>
@@ -16,10 +17,12 @@ namespace com
         struct make_impl
         {
             template<typename... Args>
-            wil::com_ptr_t<T, Policy> operator()(Args&& ...args) const
+            auto operator()(Args&& ...args) const
             {
-                wil::com_ptr_t<T, Policy> ptr;
-                ptr.attach(static_cast<T*>(winrt::make<T>(std::forward<Args>(args)...).detach()));
+                auto rawPtr = winrt::make<T>(std::forward<Args>(args)...).detach();
+                using U = std::pointer_traits<decltype(rawPtr)>::element_type;
+                wil::com_ptr_t<U, Policy> ptr;
+                ptr.attach(rawPtr);
                 return ptr;
             }
         };

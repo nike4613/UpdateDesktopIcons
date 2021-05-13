@@ -118,6 +118,17 @@ extern "C"{
 #endif 
 
 
+/* interface __MIDL_itf_IVirtualDesktop_0000_0000 */
+/* [local] */ 
+
+#include <wil/com.h>
+#include <wil/resource.h>
+#include <wil/result.h>
+
+
+extern RPC_IF_HANDLE __MIDL_itf_IVirtualDesktop_0000_0000_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_IVirtualDesktop_0000_0000_v0_0_s_ifspec;
+
 #ifndef __IVirtualDesktop_INTERFACE_DEFINED__
 #define __IVirtualDesktop_INTERFACE_DEFINED__
 
@@ -632,6 +643,35 @@ EXTERN_C const IID IID_IVirtualDesktopNotificationService;
 
 #endif 	/* __IVirtualDesktopNotificationService_INTERFACE_DEFINED__ */
 
+
+/* interface __MIDL_itf_IVirtualDesktop_0000_0004 */
+/* [local] */ 
+
+#ifdef __cplusplus
+namespace com
+{
+
+using unique_notification_registration = 
+     ::wil::unique_com_token<::IVirtualDesktopNotificationService, DWORD,
+         decltype(&IVirtualDesktopNotificationService::Unregister), &IVirtualDesktopNotificationService::Unregister>;
+
+extern "C++"
+template<typename Policy>
+unique_notification_registration register_virtual_desktop_notification(
+             ::wil::com_ptr_t<IVirtualDesktopNotificationService, Policy> const& service,
+             ::wil::com_ptr_t<IVirtualDesktopNotification, Policy> const& handler)
+{
+    unique_notification_registration registration{ service.get() };
+    THROW_IF_FAILED(service->Register(handler.get(), &registration));
+    return registration;
+}
+
+}
+#endif
+
+
+extern RPC_IF_HANDLE __MIDL_itf_IVirtualDesktop_0000_0004_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_IVirtualDesktop_0000_0004_v0_0_s_ifspec;
 
 
 #ifndef __VirtualDesktopInternalTypes_LIBRARY_DEFINED__
