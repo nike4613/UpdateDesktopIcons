@@ -90,8 +90,12 @@ void do_watch_vdesk()
         std::map<IVirtualDesktop*, UINT> indexMap;
 
         VDNotifReciever(std::vector<wil::com_ptr<IVirtualDesktop>> vec, std::map<IVirtualDesktop*, UINT> map)
-            : deskOwner{ std::move(vec) }, indexMap{ std::move(map) }
+           : deskOwner{ std::move(vec) }, indexMap{ std::move(map) }
         { }
+
+        ~VDNotifReciever()
+        {
+        }
 
         HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyBegin(IVirtualDesktop*, IVirtualDesktop*) noexcept override { return S_OK; }
         HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyFailed(IVirtualDesktop*, IVirtualDesktop*) noexcept override { return S_OK; }
@@ -101,11 +105,10 @@ void do_watch_vdesk()
 
         HRESULT STDMETHODCALLTYPE CurrentVirtualDesktopChanged(IVirtualDesktop* pDesktopOld, IVirtualDesktop* pDesktopNew) noexcept override try
         {
-            wil::com_ptr<IVirtualDesktop> from{ pDesktopOld };
-            wil::com_ptr<IVirtualDesktop> to{ pDesktopNew };
+            //wil::com_ptr<IVirtualDesktop> from{ pDesktopOld }, to{ pDesktopNew };
 
-            auto fromIdx = indexMap[from.get()];
-            auto toIdx = indexMap[to.get()];
+            auto fromIdx = indexMap.at(pDesktopOld);
+            auto toIdx = indexMap.at(pDesktopNew);
 
             printf("Changed from %d to %d\n", fromIdx, toIdx);
 
@@ -117,13 +120,14 @@ void do_watch_vdesk()
     using unique_vd_reg_cookie = wil::unique_com_token<IVirtualDesktopNotificationService, DWORD,
         decltype(&IVirtualDesktopNotificationService::Unregister), &IVirtualDesktopNotificationService::Unregister>;
 
-    auto reciever = wil::com_ptr<IVirtualDesktopNotification>(winrt::make<VDNotifReciever>(vdesktopObjOwner, indexMap).get());
+    wil::com_ptr<IVirtualDesktopNotification> reciever;
+    reciever.attach(winrt::make<VDNotifReciever>(vdesktopObjOwner, indexMap).detach());
     unique_vd_reg_cookie regCookie{ vdnotifService.get() };
     THROW_IF_FAILED(vdnotifService->Register(reciever.get(), &regCookie));
 
     std::fputws(L"Now printing all virtual desktop changes.\n", stdout);
     std::fputws(L"Press enter to exit.\n", stdout);
-    getc(stdin);
+    auto unused = getc(stdin);
 }
 
 int wmain(int argc, wchar_t const* const* argv) try
