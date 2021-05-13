@@ -2,6 +2,7 @@
 #include "priv.h"
 #include "reparse.h"
 #include "IVirtualDesktop.h"
+#include "com.h"
 
 void do_read(std::wstring_view folderName)
 {
@@ -84,7 +85,7 @@ void do_watch_vdesk()
     wil::com_ptr<IVirtualDesktopNotificationService> vdnotifService;
     THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopNotificationService>(__uuidof(CVirtualDesktopNotificationService), &vdnotifService));
     
-    struct VDNotifReciever : winrt::implements<VDNotifReciever, IVirtualDesktopNotification>
+    struct VDNotifReciever : com::object<VDNotifReciever, IVirtualDesktopNotification>
     {
         std::vector<wil::com_ptr<IVirtualDesktop>> deskOwner;
         std::map<IVirtualDesktop*, UINT> indexMap;
@@ -120,8 +121,9 @@ void do_watch_vdesk()
     using unique_vd_reg_cookie = wil::unique_com_token<IVirtualDesktopNotificationService, DWORD,
         decltype(&IVirtualDesktopNotificationService::Unregister), &IVirtualDesktopNotificationService::Unregister>;
 
-    wil::com_ptr<IVirtualDesktopNotification> reciever;
-    reciever.attach(winrt::make<VDNotifReciever>(vdesktopObjOwner, indexMap).detach());
+    /*wil::com_ptr<IVirtualDesktopNotification> reciever;
+    reciever.attach(winrt::make<VDNotifReciever>(vdesktopObjOwner, indexMap).detach());*/
+    auto reciever = VDNotifReciever::make<>(vdesktopObjOwner, indexMap);
     unique_vd_reg_cookie regCookie{ vdnotifService.get() };
     THROW_IF_FAILED(vdnotifService->Register(reciever.get(), &regCookie));
 
