@@ -118,11 +118,11 @@ void do_watch_vdesk()
         decltype(&IVirtualDesktopNotificationService::Unregister), &IVirtualDesktopNotificationService::Unregister>;
 
     auto reciever = wil::com_ptr<IVirtualDesktopNotification>(winrt::make<VDNotifReciever>(vdesktopObjOwner, indexMap).get());
-    unique_vd_reg_cookie regCookie;
-    regCookie.associate(vdnotifService.get());
+    unique_vd_reg_cookie regCookie{ vdnotifService.get() };
     THROW_IF_FAILED(vdnotifService->Register(reciever.get(), &regCookie));
 
-    printf("Press enter to exit.");
+    std::fputws(L"Now printing all virtual desktop changes.\n", stdout);
+    std::fputws(L"Press enter to exit.\n", stdout);
     getc(stdin);
 }
 
