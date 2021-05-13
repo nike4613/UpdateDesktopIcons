@@ -52,7 +52,7 @@ void do_watch_vdesk()
     auto ishell = wil::CoCreateInstance<CImmersiveShell, IServiceProvider>(CLSCTX_LOCAL_SERVER);
     
     wil::com_ptr<IVirtualDesktopManagerInternal> vdmgr;
-    THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopManagerInternal>(__uuidof(CVirtualDesktopManagerInternal), &vdmgr));
+    THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopManagerInternal>(CLSID_CVirtualDesktopManagerInternal, &vdmgr));
 
     wil::com_ptr<IObjectArray> vdesks;
     THROW_IF_FAILED(vdmgr->GetDesktops(&vdesks));
@@ -67,7 +67,7 @@ void do_watch_vdesk()
     for (UINT i = 0; i < count; i++)
     {
         wil::com_ptr<IVirtualDesktop> desk;
-        THROW_IF_FAILED(vdesks->GetAt(i, __uuidof(IVirtualDesktop), desk.put_void()));
+        THROW_IF_FAILED(vdesks->GetAt(i, IID_IVirtualDesktop, desk.put_void()));
 
         GUID guid;
         THROW_IF_FAILED(desk->GetID(&guid));
@@ -83,7 +83,7 @@ void do_watch_vdesk()
     }
 
     wil::com_ptr<IVirtualDesktopNotificationService> vdnotifService;
-    THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopNotificationService>(__uuidof(CVirtualDesktopNotificationService), &vdnotifService));
+    THROW_IF_FAILED(ishell->QueryService<IVirtualDesktopNotificationService>(CLSID_CVirtualDesktopNotificationService, &vdnotifService));
     
     struct VDNotifReciever : com::object<VDNotifReciever, IVirtualDesktopNotification>
     {
@@ -118,16 +118,7 @@ void do_watch_vdesk()
         CATCH_RETURN();
     };
 
-    /*using unique_vd_reg_cookie = wil::unique_com_token<IVirtualDesktopNotificationService, DWORD,
-        decltype(&IVirtualDesktopNotificationService::Unregister), &IVirtualDesktopNotificationService::Unregister>;*/
-
-    /*wil::com_ptr<IVirtualDesktopNotification> reciever;
-    reciever.attach(winrt::make<VDNotifReciever>(vdesktopObjOwner, indexMap).detach());*/
     auto reciever = VDNotifReciever::make<>(vdesktopObjOwner, indexMap);
-    /*
-    unique_vd_reg_cookie regCookie{ vdnotifService.get() };
-    THROW_IF_FAILED(vdnotifService->Register(reciever.get(), &regCookie));
-    */
     auto cookie = com::register_virtual_desktop_notification(vdnotifService, reciever);
 
     std::fputws(L"Now printing all virtual desktop changes.\n", stdout);
