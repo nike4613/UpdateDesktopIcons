@@ -11,20 +11,17 @@ void do_read(std::wstring_view folderName)
     reparse::reparse_folder folder{ folderName };
     if (!folder.is_valid())
     {
-        std::fputws(L"Folder is not a reparse point.\r\n", stdout);
+        fmt::print(L"Folder is not a reparse point.\r\n");
     }
     else
     {
-        std::fputws(L"Folder is a reparse point.\r\n", stdout);
+        fmt::print(L"Folder is a reparse point.\r\n");
         if (folder.is_junction())
         {
-            std::fputws(L"Folder is a mount point/junction.\r\n", stdout);
+            fmt::print(L"Folder is a mount point/junction.\r\n");
             auto const& [subs, print] = folder.get_junction_target();
-            std::fputws(L"SubstituteName: ", stdout);
-            std::fputws(subs.c_str(), stdout);
-            std::fputws(L"\r\nPrintName: ", stdout);
-            std::fputws(print.c_str(), stdout);
-            std::fputws(L"\r\n", stdout);
+            fmt::print(FMT_STRING(L"SubstituteName: {}\r\n"), subs);
+            fmt::print(FMT_STRING(L"PrintName: {}\r\n"), print);
         }
     }
 }
@@ -35,11 +32,11 @@ void do_write(std::wstring_view folderName, std::wstring_view newPath)
     reparse::reparse_folder folder{ folderName, /* readonly */ false };
     if (!folder.is_valid())
     {
-        std::fputws(L"Making folder a junction.\r\n", stdout);
+        fmt::print(L"Making folder a junction.\r\n");
     }
     else
     {
-        std::fputws(L"Changing junction target.\r\n", stdout);
+        fmt::print(L"Changing junction target.\r\n");
     }
 
     auto fullName = reparse::reparse_folder{ newPath }.full_path();
@@ -47,6 +44,30 @@ void do_write(std::wstring_view folderName, std::wstring_view newPath)
 
     folder.set_junction_target(fullName, newPath);
 }
+
+template<>
+struct fmt::formatter<GUID>
+{
+    constexpr auto parse(format_parse_context& ctx) {
+        auto it = ctx.begin(), end = ctx.end();
+        it++;
+        if (it != end && *it != '}')
+            throw format_error("invalid format");
+        return it;
+    }
+
+    template <typename FormatContext>
+    auto format(GUID const& guid, FormatContext& ctx) {
+        // auto format(const point &p, FormatContext &ctx) -> decltype(ctx.out()) // c++11
+          // ctx.out() is an output iterator to write to.
+        return format_to(
+            ctx.out(),
+            FMT_STRING("{{{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}}}"),
+            guid.Data1, guid.Data2, guid.Data3,
+            guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
+            guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
+    }
+};
 
 void do_watch_vdesk()
 {
@@ -63,7 +84,7 @@ void do_watch_vdesk()
 
     UINT count;
     THROW_IF_FAILED(vdesks->GetCount(&count));
-    printf("%d Desktops:\n", count);
+    fmt::print(FMT_STRING("{} Desktops:\n"), count);
     vdesktopObjOwner.reserve(count);
     for (UINT i = 0; i < count; i++)
     {
@@ -73,11 +94,7 @@ void do_watch_vdesk()
         GUID guid;
         THROW_IF_FAILED(desk->GetID(&guid));
 
-        printf("%d { Guid = {%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX} }\n",
-            i,
-            guid.Data1, guid.Data2, guid.Data3,
-            guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
-            guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
+        fmt::print(FMT_STRING("{} {{ Guid = {} }}\n"), i, guid);
 
         indexMap[desk.get()] = i;
         vdesktopObjOwner.emplace_back(std::move(desk));
@@ -107,12 +124,10 @@ void do_watch_vdesk()
 
         HRESULT STDMETHODCALLTYPE CurrentVirtualDesktopChanged(IVirtualDesktop* pDesktopOld, IVirtualDesktop* pDesktopNew) noexcept override try
         {
-            //wil::com_ptr<IVirtualDesktop> from{ pDesktopOld }, to{ pDesktopNew };
-
             auto fromIdx = indexMap.at(pDesktopOld);
             auto toIdx = indexMap.at(pDesktopNew);
 
-            printf("Changed from %d to %d\n", fromIdx, toIdx);
+            fmt::print(FMT_STRING("Changed from {} to {}\n"), fromIdx, toIdx);
 
             return S_OK;
         }
@@ -122,8 +137,8 @@ void do_watch_vdesk()
     auto reciever = VDNotifReciever::make<>(vdesktopObjOwner, indexMap);
     auto cookie = com::register_virtual_desktop_notification(vdnotifService, reciever);
 
-    std::fputws(L"Now printing all virtual desktop changes.\n", stdout);
-    std::fputws(L"Press enter to exit.\n", stdout);
+    fmt::print(L"Now printing all virtual desktop changes.\n");
+    fmt::print(L"Press enter to exit.\n");
     auto unused = getc(stdin);
 }
 
@@ -131,10 +146,10 @@ void do_explore()
 {
     explore::explorer_tracker tracker;
 
-    std::fputws(L"Tracking restarts of Explorer.\n", stdout);
-    tracker.set_restart_handler([] { std::fputws(L"Explorer restarted.\n", stdout); });
+    fmt::print(L"Tracking restarts of Explorer.\n");
+    tracker.set_restart_handler([] { fmt::print(L"Explorer restarted.\n"); });
     tracker.start_tracking();
-    std::fputws(L"Press enter to exit.\n", stdout);
+    fmt::print(L"Press enter to exit.\n");
     auto unused = getc(stdin);
 }
 
@@ -158,8 +173,9 @@ int wmain(int argc, wchar_t const* const* argv) try
 
     if (args.size() < 2)
     {
-        std::fputws(L"Usage: app <folder to operate on> [<new target>]\r\n", stderr);
-        std::fputws(L"       app vdesk\r\n", stderr);
+        fmt::print(stderr, FMT_STRING(L"Usage: {} <folder to operate on> [<new target>]\r\n"), args[0]);
+        fmt::print(stderr, FMT_STRING(L"       {} vdesk\r\n"), args[0]);
+        fmt::print(stderr, FMT_STRING(L"       {} explore\r\n"), args[0]);
         return -1;
     }
 

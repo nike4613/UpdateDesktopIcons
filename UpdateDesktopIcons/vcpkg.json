@@ -3,6 +3,6 @@
   "version-string": "0.0.1",
   "description": "Changes the user's Desktop folder using a junction when switching between them",
   "dependencies": [
-    "wil"
+    "wil", "fmt"
   ]
 }

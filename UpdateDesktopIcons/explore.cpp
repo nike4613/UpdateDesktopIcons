@@ -5,28 +5,29 @@ explore::explorer_tracker::explorer_tracker()
 {
     WNDCLASS wc{};
     wc.lpfnWndProc = &wnd_proc;
-    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.hInstance = THROW_LAST_ERROR_IF_NULL(GetModuleHandleW(nullptr));
     wc.lpszClassName = L"Explorer.exe restart tracker";
 
     winClass = explore::unique_window_class_atom{ RegisterClassW(&wc) };
     THROW_LAST_ERROR_IF_MSG(!winClass.is_valid(), "Failed to register window class");
 
-    window = wil::unique_hwnd{
-        CreateWindowExW(
-            0,
-            (LPCWSTR)winClass.get(),
-            L"Explorer restart tracker",
-            WS_BORDER,
-            0, 0, 0, 0,
-            HWND_MESSAGE,
-            nullptr,
-            GetModuleHandleW(nullptr),
-            this)
-    };
-    THROW_LAST_ERROR_IF_MSG(!window.is_valid(), "Failed to create window");
-
     taskbarCreatedMessage = RegisterWindowMessageW(L"TaskbarCreated");
     THROW_LAST_ERROR_IF_MSG(taskbarCreatedMessage == 0, "Could not register TaskbarCreated message");
+
+    window = wil::unique_hwnd{
+        THROW_LAST_ERROR_IF_NULL(
+            CreateWindowExW(
+                WS_EX_TOOLWINDOW,
+                (LPCWSTR)winClass.get(),
+                L"Explorer restart tracker",
+                WS_BORDER,
+                0, 0, 0, 0,
+                0, // no parent
+                nullptr,
+                THROW_LAST_ERROR_IF_NULL(GetModuleHandleW(nullptr)),
+                this))
+    };
+    THROW_LAST_ERROR_IF_MSG(!window.is_valid(), "Failed to create window");
 }
 
 explore::explorer_tracker::~explorer_tracker()
@@ -51,6 +52,13 @@ LRESULT CALLBACK explore::explorer_tracker::wnd_proc(HWND window, UINT uMsg, WPA
     explore::explorer_tracker* obj;
     switch (uMsg)
     {
+    case WM_GETMINMAXINFO:
+    {
+        // this is invoked *before* NCCREATE and CREATE for some reason
+        auto mmInfo = (MINMAXINFO*)lParam;
+        *mmInfo = {};
+        return 0;
+    }
     case WM_NCCREATE:
     case WM_CREATE: // idk why but GetWindowLongPtrW fails during WM_CREATE
         obj = reinterpret_cast<explore::explorer_tracker*>(
@@ -62,7 +70,7 @@ LRESULT CALLBACK explore::explorer_tracker::wnd_proc(HWND window, UINT uMsg, WPA
         break;
     default:
         obj = reinterpret_cast<explore::explorer_tracker*>(GetWindowLongPtrW(window, GWLP_USERDATA));
-        RETURN_LAST_ERROR_IF_MSG(GetLastError() != 0, "Could not get explorer tracker instance from window");
+        RETURN_LAST_ERROR_IF_MSG(GetLastError() != 0 && obj == nullptr, "Could not get explorer tracker instance from window (msg %X)", uMsg);
         break;
     }
 
@@ -89,6 +97,29 @@ LRESULT explore::explorer_tracker::inst_wnd_proc(UINT uMsg, WPARAM wParam, LPARA
         return TRUE; // need this to continue
     case WM_CREATE:
         return 0; // need this to continue
+
+    case WM_NCCALCSIZE:
+        if ((BOOL)wParam)
+        {
+            auto params = (NCCALCSIZE_PARAMS*)lParam;
+            params->rgrc[0] = {};
+            params->rgrc[1] = {};
+            params->rgrc[2] = {};
+            params->lppos->x = 0;
+            params->lppos->y = 0;
+            params->lppos->cx = 0;
+            params->lppos->cy = 0;
+            params->lppos->flags = SWP_HIDEWINDOW;
+
+            return 0;
+        }
+        else
+        {
+            auto rect = (RECT*)lParam;
+            *rect = {};
+            
+            return 0;
+        }
     }
 
     return 0;
