@@ -144,10 +144,9 @@ void do_watch_vdesk()
 
 void do_explore()
 {
-    explore::explorer_tracker tracker;
+    explore::explorer_tracker tracker{ [] { fmt::print(L"Explorer restarted.\n"); } };
 
     fmt::print(L"Tracking restarts of Explorer.\n");
-    tracker.set_restart_handler([] { fmt::print(L"Explorer restarted.\n"); });
     tracker.start_tracking();
     fmt::print(L"Press enter to exit.\n");
     auto unused = getc(stdin);

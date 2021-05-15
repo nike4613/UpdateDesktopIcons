@@ -65,6 +65,12 @@ explore::explorer_tracker::explorer_tracker()
     window = future.get();
 }
 
+explore::explorer_tracker::explorer_tracker(std::function<void()> handle)
+    : explorer_tracker{}
+{
+    handler = std::move(handle);
+}
+
 explore::explorer_tracker::~explorer_tracker()
 {
     msgLoopThread.request_stop();
@@ -74,7 +80,8 @@ explore::explorer_tracker::~explorer_tracker()
 
 void explore::explorer_tracker::set_restart_handler(std::function<void()> handle)
 {
-    this->handler = handle;
+    std::scoped_lock _{ handlerMut };
+    handler = std::move(handle);
 }
 
 void explore::explorer_tracker::start_tracking()
@@ -120,7 +127,12 @@ LRESULT explore::explorer_tracker::inst_wnd_proc(UINT uMsg, WPARAM wParam, LPARA
 {
     if (uMsg == taskbarCreatedMessage)
     {
-        auto handle = handler;
+        decltype(handler) handle;
+        {
+            std::scoped_lock lock{ handlerMut };
+            auto handle = handler;
+        }
+
         if (handle)
         {
             handle();

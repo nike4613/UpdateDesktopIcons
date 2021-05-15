@@ -5,6 +5,7 @@
 #include <wil/resource.h>
 #include <functional>
 #include <thread>
+#include <mutex>
 
 namespace explore
 {
@@ -18,6 +19,7 @@ namespace explore
     struct explorer_tracker
     {
         explorer_tracker();
+        explorer_tracker(std::function<void()> handler);
         ~explorer_tracker();
 
         void set_restart_handler(std::function<void()> handler);
@@ -28,6 +30,7 @@ namespace explore
         
         unique_window_class_atom winClass;
         std::function<void()> handler;
+        std::mutex handlerMut;
         std::jthread msgLoopThread;
         HWND window;
         UINT taskbarCreatedMessage;
