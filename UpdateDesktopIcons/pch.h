@@ -21,6 +21,7 @@
 #include <memory>
 #include <functional>
 #include <iostream>
+#include <thread>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

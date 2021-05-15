@@ -47,6 +47,30 @@ void explore::explorer_tracker::start_tracking()
     ShowWindow(window.get(), SW_SHOW);
 }
 
+void explore::explorer_tracker::start_message_loop()
+{
+    msgLoopThread = std::jthread([jt = &this->msgLoopThread, hw = window.get()]
+    {
+        while (!jt->get_stop_token().stop_requested())
+        {
+            MSG msg;
+            if (PeekMessageW(&msg, hw, 0, 0, PM_REMOVE))
+            {
+                if (LOG_IF_WIN32_BOOL_FALSE(TranslateMessage(&msg)))
+                {
+                    DispatchMessageW(&msg);
+                }
+            }
+
+            if (!SwitchToThread()) // yield exceution
+            {
+                // if there are no other threads ready to run, sleep a bit
+                Sleep(1);
+            }
+        }
+    });
+}
+
 LRESULT CALLBACK explore::explorer_tracker::wnd_proc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam) try
 {
     explore::explorer_tracker* obj;
