@@ -48,16 +48,14 @@ void do_write(std::wstring_view folderName, std::wstring_view newPath)
 template<>
 struct fmt::formatter<GUID>
 {
-    constexpr auto parse(format_parse_context& ctx) {
-        auto it = ctx.begin(), end = ctx.end();
-        it++;
-        if (it != end && *it != '}')
-            throw format_error("invalid format");
-        return it;
+    constexpr auto parse(format_parse_context& ctx)
+    {
+        return ctx.begin();
     }
 
     template <typename FormatContext>
-    auto format(GUID const& guid, FormatContext& ctx) {
+    auto format(GUID const& guid, FormatContext& ctx)
+    {
         // auto format(const point &p, FormatContext &ctx) -> decltype(ctx.out()) // c++11
           // ctx.out() is an output iterator to write to.
         return format_to(
