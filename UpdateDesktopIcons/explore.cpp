@@ -130,7 +130,7 @@ LRESULT explore::explorer_tracker::inst_wnd_proc(UINT uMsg, WPARAM wParam, LPARA
         decltype(handler) handle;
         {
             std::scoped_lock lock{ handlerMut };
-            auto handle = handler;
+            handle = handler;
         }
 
         if (handle)
