@@ -48,7 +48,7 @@ namespace config
         friend void from_json(json const&, configuration&);
 
     private:
-        std::vector<std::unique_ptr<desktop_configuration>> storage;
+        std::vector<util::copy_ptr<desktop_configuration>> storage;
         std::unordered_map<GUID, ref> byGuid;
         std::unordered_map<int, ref> byIndex;
     };

@@ -83,6 +83,35 @@ namespace util
 
         std::size_t index;
     };
+
+    // This is effectively a unique_ptr that can copy its content
+    template<typename T>
+    struct copy_ptr
+    {
+        using element_type = T;
+        using pointer = element_type*;
+
+        copy_ptr() noexcept = default;
+        copy_ptr(std::nullptr_t) noexcept : obj{ nullptr } {}
+        copy_ptr(copy_ptr const& other) noexcept(noexcept(std::make_unique<T>(*other)))
+            : obj{ std::make_unique<T>(*other) } {} // invoke T's copy ctor
+        copy_ptr(copy_ptr&&) noexcept = default;
+
+        copy_ptr(std::unique_ptr<T> const& obj) noexcept(noexcept(std::make_unique<T>(*obj)))
+            : obj{ std::make_unique<T>(*obj) } {} // invoke T's copy ctor
+        copy_ptr(std::unique_ptr<T>&& obj) noexcept
+            : obj{ std::move(obj) } {}
+
+        void reset(T* ptr = nullptr) noexcept(noexcept(obj.reset(ptr)))
+        { obj.reset(ptr); }
+
+        pointer get() const noexcept { return obj.get(); }
+
+        std::add_lvalue_reference_t<T> operator*() const noexcept { return *obj; }
+        pointer operator->() const noexcept { return obj.operator->(); }
+    private:
+        std::unique_ptr<T> obj;
+    };
 }
 
 template<>
