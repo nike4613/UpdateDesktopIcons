@@ -4,6 +4,7 @@
 #include "IVirtualDesktop.h"
 #include "com.h"
 #include "explore.h"
+#include "util.h"
 
 void do_read(std::wstring_view folderName)
 {
@@ -43,28 +44,6 @@ void do_write(std::wstring_view folderName, std::wstring_view newPath)
 
     folder.set_junction_target(fullName, newPath);
 }
-
-template<>
-struct fmt::formatter<GUID>
-{
-    constexpr auto parse(format_parse_context& ctx)
-    {
-        return ctx.begin();
-    }
-
-    template <typename FormatContext>
-    auto format(GUID const& guid, FormatContext& ctx)
-    {
-        // auto format(const point &p, FormatContext &ctx) -> decltype(ctx.out()) // c++11
-          // ctx.out() is an output iterator to write to.
-        return format_to(
-            ctx.out(),
-            FMT_STRING("{{{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}}}"),
-            guid.Data1, guid.Data2, guid.Data3,
-            guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
-            guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-    }
-};
 
 void do_watch_vdesk()
 {
@@ -166,6 +145,27 @@ int wmain(int argc, wchar_t const* const* argv) try
     auto coInit = wil::CoInitializeEx(COINIT_MULTITHREADED);
 
     std::span<wchar_t const* const> const args(argv, argc);
+
+    /*
+    auto guid = IID_IAuthenticate;
+    fmt::print(FMT_STRING("{0:e}\n"), guid);
+    nlohmann::json test_j = guid;
+    fmt::print(FMT_STRING("{}\n"), test_j.dump(2));
+    auto guid2 = test_j.get<GUID>();
+    assert(guid == guid2);
+    auto guid3 = nlohmann::json("").get<GUID>();
+    auto guid4 = nlohmann::json("-").get<GUID>();
+    auto guid5 = nlohmann::json("--").get<GUID>();
+    auto guid6 = nlohmann::json("ace").get<GUID>();
+    auto guid7 = nlohmann::json("ace-").get<GUID>();
+    auto guid8 = nlohmann::json("ace-01").get<GUID>();
+    auto guid9 = nlohmann::json("ace-01-").get<GUID>();
+    auto guida = nlohmann::json("ace-01-5").get<GUID>();
+    auto guidb = nlohmann::json("ace-01-5f").get<GUID>();
+    auto guidc = nlohmann::json("ace-01-5f-").get<GUID>();
+    auto guidd = nlohmann::json("ace-01-5f-034").get<GUID>();
+    auto guide = nlohmann::json("ace-01-5f-034-782-7").get<GUID>();
+    */
 
     if (args.size() < 2)
     {
