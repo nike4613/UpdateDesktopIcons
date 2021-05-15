@@ -24,11 +24,12 @@ explore::explorer_tracker::explorer_tracker()
                 auto window = wil::unique_hwnd{
                     THROW_LAST_ERROR_IF_NULL(
                         CreateWindowExW(
-                            WS_EX_TOOLWINDOW,
+                            /*WS_EX_TOOLWINDOW | */WS_EX_NOACTIVATE,
                             (LPCWSTR)klass,
                             L"Explorer restart tracker",
-                            WS_BORDER,
-                            0, 0, 0, 0,
+                            WS_DISABLED,
+                            std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), // place ourselves way off the screen
+                            0, 0,
                             0, // no parent
                             nullptr,
                             THROW_LAST_ERROR_IF_NULL(GetModuleHandleW(nullptr)),
@@ -86,7 +87,8 @@ void explore::explorer_tracker::set_restart_handler(std::function<void()> handle
 
 void explore::explorer_tracker::start_tracking()
 {
-    ShowWindow(window, SW_SHOW);
+    ShowWindow(window, SW_SHOWNOACTIVATE);
+    EnableWindow(window, false); // make sure the window stays disabled
 }
 
 LRESULT CALLBACK explore::explorer_tracker::wnd_proc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam) try
@@ -153,11 +155,12 @@ LRESULT explore::explorer_tracker::inst_wnd_proc(UINT uMsg, WPARAM wParam, LPARA
             params->rgrc[0] = {};
             params->rgrc[1] = {};
             params->rgrc[2] = {};
-            params->lppos->x = 0;
-            params->lppos->y = 0;
+            // place ourselves way off the screen
+            params->lppos->x = std::numeric_limits<int>::max();
+            params->lppos->y = std::numeric_limits<int>::max();
             params->lppos->cx = 0;
             params->lppos->cy = 0;
-            params->lppos->flags = SWP_HIDEWINDOW;
+            params->lppos->flags = SWP_NOSENDCHANGING | SWP_NOREPOSITION | SWP_NOREDRAW;
 
             return 0;
         }
@@ -170,7 +173,7 @@ LRESULT explore::explorer_tracker::inst_wnd_proc(UINT uMsg, WPARAM wParam, LPARA
         }
     }
 
-    return 0;
+    return 0; // we don't handle anything else
 }
 
 void explore::detail::UnregisterWindowClassFunc(ATOM klass)

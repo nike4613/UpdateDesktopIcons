@@ -10,6 +10,8 @@
 #include <winrt/Windows.Storage.h>
 
 #include <Windows.h>
+#undef min
+#undef max
 
 #include <span>
 #include <ranges>

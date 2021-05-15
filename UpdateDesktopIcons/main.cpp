@@ -40,7 +40,6 @@ void do_write(std::wstring_view folderName, std::wstring_view newPath)
     }
 
     auto fullName = reparse::reparse_folder{ newPath }.full_path();
-    //auto fullName = newPath;
 
     folder.set_junction_target(fullName, newPath);
 }
