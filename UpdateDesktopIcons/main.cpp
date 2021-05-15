@@ -5,6 +5,7 @@
 #include "com.h"
 #include "explore.h"
 #include "util.h"
+#include "config.h"
 
 void do_read(std::wstring_view folderName)
 {

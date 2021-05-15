@@ -19,6 +19,7 @@
 #include <string>
 #include <string_view>
 #include <map>
+#include <unordered_map>
 #include <utility>
 #include <memory>
 #include <functional>
@@ -31,6 +32,8 @@
 #include <fstream>
 #include <charconv>
 #include <algorithm>
+#include <concepts>
+#include <vector>
 
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>

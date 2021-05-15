@@ -2,12 +2,88 @@
 #include <charconv>
 #include <algorithm>
 #include <string_view>
+#include <concepts>
+#include <filesystem>
 
 #include <fmt/format.h>
 #include <fmt/compile.h>
 #include <nlohmann/json.hpp>
 
 #include <guiddef.h>
+
+namespace util
+{
+    struct cell_ref_get_t {};
+
+    template<typename T>
+    concept has_get_index = requires(T v)
+    {
+        v.get(std::declval<std::size_t>());
+    };
+
+    template<typename T>
+    concept has_tagged_get = requires(T v)
+    {
+        v.get(std::declval<std::size_t>(), cell_ref_get_t{});
+    };
+
+    template<typename T>
+    concept cell_ref_owner = has_get_index<T> || has_tagged_get<T>;
+
+    template<typename TOwner>
+    //requires cell_ref_owner<TOwner>
+    struct cell_ref
+    {
+        cell_ref() noexcept = default;
+        cell_ref(cell_ref const&) noexcept = default;
+        cell_ref(cell_ref&&) noexcept = default;
+
+        decltype(auto) in(TOwner const* owner) const noexcept(noexcept(in(*owner)))
+        {
+            return in(*owner);
+        }
+
+        decltype(auto) in(TOwner const& owner) const
+            noexcept(noexcept(owner.get(std::declval<std::size_t>())))
+            requires has_get_index<TOwner>
+        {
+            return owner.get(index);
+        }
+
+        decltype(auto) in(TOwner const& owner) const
+            noexcept(noexcept(owner.get(std::declval<std::size_t>(), cell_ref_get_t{})))
+            requires has_tagged_get<TOwner>
+        {
+            return owner.get(index, cell_ref_get_t{});
+        }
+
+        decltype(auto) in(TOwner* owner) const noexcept(noexcept(in(*owner)))
+        {
+            return in(*owner);
+        }
+
+        decltype(auto) in(TOwner& owner) const
+            noexcept(noexcept(owner.get(std::declval<std::size_t>())))
+            requires has_get_index<TOwner>
+        {
+            return owner.get(index);
+        }
+
+        decltype(auto) in(TOwner& owner) const
+            noexcept(noexcept(owner.get(std::declval<std::size_t>(), cell_ref_get_t{})))
+            requires has_tagged_get<TOwner>
+        {
+            return owner.get(index, cell_ref_get_t{});
+        }
+
+
+    private:
+        friend TOwner;
+        cell_ref(std::size_t idx) noexcept : index{ idx } { }
+
+        std::size_t index;
+    };
+}
 
 template<>
 struct fmt::formatter<GUID>
@@ -99,5 +175,20 @@ struct nlohmann::adl_serializer<GUID>
         begin = std::from_chars(begin, std::min(begin + 2, end), guid.Data4[5], 16).ptr;
         begin = std::from_chars(begin, std::min(begin + 2, end), guid.Data4[6], 16).ptr;
         begin = std::from_chars(begin, end, guid.Data4[7], 16).ptr; // since this is the last one, we read to the end of the string
+    }
+};
+
+template<>
+struct nlohmann::adl_serializer<std::filesystem::path>
+{
+    using json = nlohmann::json;
+    using path = std::filesystem::path;
+    static void to_json(json& j, path const& p)
+    {
+        j = p.generic_string();
+    }
+    static void from_json(json const& j, path& p)
+    {
+        p = path{ j.get<std::string>() };
     }
 };
