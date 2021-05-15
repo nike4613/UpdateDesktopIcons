@@ -39,6 +39,8 @@ namespace config
         std::optional<ref> by_guid(GUID const& guid) const noexcept;
         std::optional<ref> by_index(int index) const noexcept;
 
+        void remove(ref value) noexcept;
+
         desktop_configuration* get(std::size_t index, util::cell_ref_get_t);
         desktop_configuration const* get(std::size_t index, util::cell_ref_get_t) const;
         decltype(auto) operator[](ref val) { return val.in(this); }
@@ -51,6 +53,7 @@ namespace config
         std::vector<util::copy_ptr<desktop_configuration>> storage;
         std::unordered_map<GUID, ref> byGuid;
         std::unordered_map<int, ref> byIndex;
+        std::size_t lastCleared;
     };
 
 }

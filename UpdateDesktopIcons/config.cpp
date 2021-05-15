@@ -74,6 +74,23 @@ auto config::configuration::by_index(int index) const noexcept -> std::optional<
     }
 }
 
+void config::configuration::remove(ref value) noexcept
+{
+    if (value.index >= storage.size())
+        return;
+
+    auto cfg = std::move(storage[value.index]); // clear it
+    byGuid.erase(cfg->guid); // we assume that there can only be one entry with each guid
+
+    auto idxIt = byIndex.find(cfg->index);
+    if (idxIt != byIndex.end() && idxIt->second == value) // only actually erase if the ref is the same
+    {
+        byIndex.erase(idxIt);
+    }
+
+    lastCleared = value.index;
+}
+
 desktop_configuration* config::configuration::get(std::size_t index, util::cell_ref_get_t)
 {
     return const_cast<desktop_configuration*>(const_cast<configuration const*>(this)->get(index, util::cell_ref_get_t{}));

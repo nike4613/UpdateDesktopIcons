@@ -39,43 +39,35 @@ namespace util
         cell_ref(cell_ref&&) noexcept = default;
 
         decltype(auto) in(TOwner const* owner) const noexcept(noexcept(in(*owner)))
-        {
-            return in(*owner);
-        }
+        { return in(*owner); }
 
         decltype(auto) in(TOwner const& owner) const
             noexcept(noexcept(owner.get(std::declval<std::size_t>())))
             requires has_get_index<TOwner>
-        {
-            return owner.get(index);
-        }
+        { return owner.get(index); }
 
         decltype(auto) in(TOwner const& owner) const
             noexcept(noexcept(owner.get(std::declval<std::size_t>(), cell_ref_get_t{})))
             requires has_tagged_get<TOwner>
-        {
-            return owner.get(index, cell_ref_get_t{});
-        }
+        { return owner.get(index, cell_ref_get_t{}); }
 
         decltype(auto) in(TOwner* owner) const noexcept(noexcept(in(*owner)))
-        {
-            return in(*owner);
-        }
+        { return in(*owner); }
 
         decltype(auto) in(TOwner& owner) const
             noexcept(noexcept(owner.get(std::declval<std::size_t>())))
             requires has_get_index<TOwner>
-        {
-            return owner.get(index);
-        }
+        { return owner.get(index); }
 
         decltype(auto) in(TOwner& owner) const
             noexcept(noexcept(owner.get(std::declval<std::size_t>(), cell_ref_get_t{})))
             requires has_tagged_get<TOwner>
-        {
-            return owner.get(index, cell_ref_get_t{});
-        }
+        { return owner.get(index, cell_ref_get_t{}); }
 
+        friend bool operator==(cell_ref a, cell_ref b) noexcept
+        { return a.index == b.index; }
+        friend bool operator!=(cell_ref a, cell_ref b) noexcept
+        { return a.index != b.index; }
 
     private:
         friend TOwner;
