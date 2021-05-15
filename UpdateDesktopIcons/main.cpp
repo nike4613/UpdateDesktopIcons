@@ -150,7 +150,6 @@ void do_explore()
     tracker.set_restart_handler([] { fmt::print(L"Explorer restarted.\n"); });
     tracker.start_tracking();
     fmt::print(L"Press enter to exit.\n");
-    tracker.start_message_loop();
     auto unused = getc(stdin);
 }
 

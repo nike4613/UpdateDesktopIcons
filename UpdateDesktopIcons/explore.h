@@ -4,6 +4,7 @@
 
 #include <wil/resource.h>
 #include <functional>
+#include <thread>
 
 namespace explore
 {
@@ -21,15 +22,14 @@ namespace explore
 
         void set_restart_handler(std::function<void()> handler);
         void start_tracking();
-        void start_message_loop();
     private:
         static LRESULT CALLBACK wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
         LRESULT inst_wnd_proc(UINT uMsg, WPARAM wParam, LPARAM lParam);
         
         unique_window_class_atom winClass;
-        wil::unique_hwnd window;
         std::function<void()> handler;
-        UINT taskbarCreatedMessage;
         std::jthread msgLoopThread;
+        HWND window;
+        UINT taskbarCreatedMessage;
     };
 }

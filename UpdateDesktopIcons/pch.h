@@ -22,6 +22,10 @@
 #include <functional>
 #include <iostream>
 #include <thread>
+#include <future>
+#include <atomic>
+#include <bit>
+#include <mutex>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

@@ -14,61 +14,72 @@ explore::explorer_tracker::explorer_tracker()
     taskbarCreatedMessage = RegisterWindowMessageW(L"TaskbarCreated");
     THROW_LAST_ERROR_IF_MSG(taskbarCreatedMessage == 0, "Could not register TaskbarCreated message");
 
-    window = wil::unique_hwnd{
-        THROW_LAST_ERROR_IF_NULL(
-            CreateWindowExW(
-                WS_EX_TOOLWINDOW,
-                (LPCWSTR)winClass.get(),
-                L"Explorer restart tracker",
-                WS_BORDER,
-                0, 0, 0, 0,
-                0, // no parent
-                nullptr,
-                THROW_LAST_ERROR_IF_NULL(GetModuleHandleW(nullptr)),
-                this))
-    };
-    THROW_LAST_ERROR_IF_MSG(!window.is_valid(), "Failed to create window");
+    std::promise<HWND> hwndPromise;
+    auto future = hwndPromise.get_future();
+
+    msgLoopThread = std::jthread([](std::stop_token stoptok, ATOM klass, std::promise<HWND> promise, explore::explorer_tracker* self)
+        {
+            try
+            {
+                auto window = wil::unique_hwnd{
+                    THROW_LAST_ERROR_IF_NULL(
+                        CreateWindowExW(
+                            WS_EX_TOOLWINDOW,
+                            (LPCWSTR)klass,
+                            L"Explorer restart tracker",
+                            WS_BORDER,
+                            0, 0, 0, 0,
+                            0, // no parent
+                            nullptr,
+                            THROW_LAST_ERROR_IF_NULL(GetModuleHandleW(nullptr)),
+                            self))
+                };
+                THROW_LAST_ERROR_IF_MSG(!window.is_valid(), "Failed to create window");
+
+                auto hw = window.get();
+
+                promise.set_value(hw);
+
+                while (!stoptok.stop_requested())
+                {
+                    MSG msg;
+                    if (PeekMessageW(&msg, hw, 0, 0, PM_REMOVE))
+                    {
+                        TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    }
+
+                    if (!SwitchToThread()) // yield exceution
+                    {
+                        // if there are no other threads ready to run, sleep a bit
+                        Sleep(1);
+                    }
+                }
+            }
+            catch (...)
+            {
+                promise.set_exception(std::current_exception());
+            }
+        }, winClass.get(), std::move(hwndPromise), this);
+
+    window = future.get();
 }
 
 explore::explorer_tracker::~explorer_tracker()
 {
-    // the order of destruction here is *really* important
-    window.reset();
+    msgLoopThread.request_stop();
+    msgLoopThread.join();
     winClass.reset();
 }
 
-void explore::explorer_tracker::set_restart_handler(std::function<void()> handler)
+void explore::explorer_tracker::set_restart_handler(std::function<void()> handle)
 {
-    this->handler = handler;
+    this->handler = handle;
 }
 
 void explore::explorer_tracker::start_tracking()
 {
-    ShowWindow(window.get(), SW_SHOW);
-}
-
-void explore::explorer_tracker::start_message_loop()
-{
-    msgLoopThread = std::jthread([jt = &this->msgLoopThread, hw = window.get()]
-    {
-        while (!jt->get_stop_token().stop_requested())
-        {
-            MSG msg;
-            if (PeekMessageW(&msg, hw, 0, 0, PM_REMOVE))
-            {
-                if (LOG_IF_WIN32_BOOL_FALSE(TranslateMessage(&msg)))
-                {
-                    DispatchMessageW(&msg);
-                }
-            }
-
-            if (!SwitchToThread()) // yield exceution
-            {
-                // if there are no other threads ready to run, sleep a bit
-                Sleep(1);
-            }
-        }
-    });
+    ShowWindow(window, SW_SHOW);
 }
 
 LRESULT CALLBACK explore::explorer_tracker::wnd_proc(HWND window, UINT uMsg, WPARAM wParam, LPARAM lParam) try
@@ -108,10 +119,11 @@ CATCH_RETURN(); // returns nonzero on failure
 LRESULT explore::explorer_tracker::inst_wnd_proc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     if (uMsg == taskbarCreatedMessage)
-    { // FIXME: why don't I recieve this message?
-        if (handler)
+    {
+        auto handle = handler;
+        if (handle)
         {
-            handler();
+            handle();
         }
     }
 
