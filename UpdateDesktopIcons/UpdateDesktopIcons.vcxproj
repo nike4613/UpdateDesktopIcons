@@ -114,6 +114,7 @@
     </ClCompile>
     <ClCompile Include="priv.cpp" />
     <ClCompile Include="reparse.cpp" />
+    <ClCompile Include="util.cpp" />
     <ClCompile Include="_idl.cpp" />
   </ItemGroup>
   <ItemGroup>

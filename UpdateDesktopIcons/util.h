@@ -153,6 +153,20 @@ struct fmt::formatter<GUID>
     }
 };
 
+namespace util
+{
+    std::size_t hash_guid(GUID const& guid) noexcept;
+}
+
+template<>
+struct std::hash<GUID>
+{
+    std::size_t operator()(GUID const& guid) const noexcept
+    {
+        return util::hash_guid(guid);
+    }
+};
+
 template<>
 struct nlohmann::adl_serializer<GUID>
 {

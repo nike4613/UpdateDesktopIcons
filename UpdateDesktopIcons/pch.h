@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <concepts>
 #include <vector>
+#include <bitset>
 
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>

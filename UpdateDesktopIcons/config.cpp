@@ -87,8 +87,21 @@ void config::configuration::remove(ref value) noexcept
     {
         byIndex.erase(idxIt);
     }
+}
 
-    lastCleared = value.index;
+void config::configuration::changed(ref value) noexcept
+{
+    if (value.index >= storage.size())
+        return;
+
+    auto config = storage[value.index].get();
+    if (config == nullptr)
+        return;
+
+    std::erase_if(byGuid, [=](auto const& p) { return p.second == value && config->guid != p.first; });
+    std::erase_if(byIndex, [=](auto const& p) { return p.second == value && config->index != p.first; });
+    byGuid.try_emplace(config->guid, value);
+    byIndex.try_emplace(config->index, value);
 }
 
 desktop_configuration* config::configuration::get(std::size_t index, util::cell_ref_get_t)
