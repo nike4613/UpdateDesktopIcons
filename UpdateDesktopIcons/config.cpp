@@ -26,12 +26,35 @@ void config::from_json(json const& j, desktop_configuration& config)
 
 void config::to_json(json& j, configuration const& config)
 {
-    // TODO:
+    auto arr = json::array({});
+    for (auto ref : config)
+    {
+        auto desk = ref.in(config);
+        if (desk != nullptr)
+        {
+            arr.push_back(*desk);
+        }
+    }
+
+    j = json{
+        {"version", 1},
+        {"defaultDir", config.default_dir},
+        {"desktopMap", arr}
+    };
 }
 
 void config::from_json(json const& j, configuration& config)
 {
-    // TODO:
+    if (j.at("version").get<int>() != 1)
+        throw std::runtime_error("invalid version");
+    j.at("defaultDir").get_to(config.default_dir);
+
+    for (auto const& el : j.at("desktopMap"))
+    {
+        auto desk = std::make_unique<desktop_configuration>();
+        el.get_to(*desk);
+        config.storage.emplace_back(desk);
+    }
 }
 
 void config::desktop_configuration::set_rel_base(std::filesystem::path const& relBase)
@@ -46,6 +69,11 @@ void config::desktop_configuration::set_rel_base(std::filesystem::path const& re
 
     relative_base = relBase;
     real_directory = relBase / realdir;
+}
+
+void config::configuration::rebuild_maps() noexcept
+{
+    // TODO:
 }
 
 auto config::configuration::by_guid(GUID const& guid) const noexcept -> std::optional<ref>

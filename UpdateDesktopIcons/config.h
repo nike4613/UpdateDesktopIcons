@@ -36,6 +36,9 @@ namespace config
     {
         using ref = util::cell_ref<configuration>;
 
+        std::filesystem::path default_dir; // TODO: make this a relpath
+
+        void rebuild_maps() noexcept;
         std::optional<ref> by_guid(GUID const& guid) const noexcept;
         std::optional<ref> by_index(int index) const noexcept;
 
@@ -114,9 +117,15 @@ namespace config
             }
             */
 
-            friend std::strong_ordering operator<=>(iterator const& a, iterator const& b) noexcept
+            bool operator==(iterator const& b) const noexcept = default;
+            bool operator!=(iterator const& b) const noexcept = default;
+            bool operator<(iterator const& b) const noexcept = default;
+            bool operator>(iterator const& b) const noexcept = default;
+            bool operator<=(iterator const& b) const noexcept = default;
+            bool operator>=(iterator const& b) const noexcept = default;
+            std::strong_ordering operator<=>(iterator const& b) const noexcept
             {
-                return a.index <=> b.index;
+                return index <=> b.index;
             }
         private:
             friend struct configuration;

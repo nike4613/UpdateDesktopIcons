@@ -168,6 +168,12 @@ int wmain(int argc, wchar_t const* const* argv) try
     auto guide = nlohmann::json("ace-01-5f-034-782-7").get<GUID>();
     */
 
+    config::configuration conf1{};
+    nlohmann::json conf1j(conf1);
+    fmt::print(FMT_STRING("{}\n"), conf1j.dump(2));
+    auto conf2 = conf1j.get<config::configuration>();
+
+
     if (args.size() < 2)
     {
         fmt::print(stderr, FMT_STRING(L"Usage: {} <folder to operate on> [<new target>]\r\n"), args[0]);
