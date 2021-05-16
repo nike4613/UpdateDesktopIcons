@@ -168,11 +168,32 @@ int wmain(int argc, wchar_t const* const* argv) try
     auto guide = nlohmann::json("ace-01-5f-034-782-7").get<GUID>();
     */
 
+    /*
     config::configuration conf1{};
     nlohmann::json conf1j(conf1);
     fmt::print(FMT_STRING("{}\n"), conf1j.dump(2));
     auto conf2 = conf1j.get<config::configuration>();
+    */
 
+    using namespace nlohmann;
+    auto config = R"(
+{
+    "version": 1,
+    "defaultDir": "default",
+    "desktops": [
+        {
+            "index": 1,
+            "guid": "D17AE2AC-60A1-4CD6-B108-B55D775E4AA3",
+            "path": "first/"
+        }
+    ]
+}
+)"_json.get<config::configuration>();
+    config.set_rel_base("z:\\users\\aaron\\Desktops\\");
+    config.rebuild_maps();
+
+    auto config2 = config;
+    fmt::print(FMT_STRING("{}\n"), json(config2).dump(2));
 
     if (args.size() < 2)
     {

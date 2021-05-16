@@ -13,7 +13,7 @@
 
 namespace util
 {
-    struct cell_ref_get_t {};
+    struct cell_ref_get_tag {};
 
     template<typename T>
     concept has_get_index = requires(T v)
@@ -24,7 +24,7 @@ namespace util
     template<typename T>
     concept has_tagged_get = requires(T v)
     {
-        v.get(std::declval<std::size_t>(), cell_ref_get_t{});
+        v.get(std::declval<std::size_t>(), cell_ref_get_tag{});
     };
 
     template<typename T>
@@ -47,9 +47,9 @@ namespace util
         { return owner.get(index); }
 
         decltype(auto) in(TOwner const& owner) const
-            noexcept(noexcept(owner.get(std::declval<std::size_t>(), cell_ref_get_t{})))
+            noexcept(noexcept(owner.get(std::declval<std::size_t>(), cell_ref_get_tag{})))
             requires has_tagged_get<TOwner>
-        { return owner.get(index, cell_ref_get_t{}); }
+        { return owner.get(index, cell_ref_get_tag{}); }
 
         decltype(auto) in(TOwner* owner) const noexcept(noexcept(in(*owner)))
         { return in(*owner); }
@@ -60,9 +60,9 @@ namespace util
         { return owner.get(index); }
 
         decltype(auto) in(TOwner& owner) const
-            noexcept(noexcept(owner.get(std::declval<std::size_t>(), cell_ref_get_t{})))
+            noexcept(noexcept(owner.get(std::declval<std::size_t>(), cell_ref_get_tag{})))
             requires has_tagged_get<TOwner>
-        { return owner.get(index, cell_ref_get_t{}); }
+        { return owner.get(index, cell_ref_get_tag{}); }
 
         friend bool operator==(cell_ref a, cell_ref b) noexcept
         { return a.index == b.index; }
@@ -103,6 +103,43 @@ namespace util
         pointer operator->() const noexcept { return obj.operator->(); }
     private:
         std::unique_ptr<T> obj;
+    };
+
+    struct relative_tag {};
+
+    // although this stores only absolute paths, setting relative_to changes the real target
+    // because it treats it as-if it stored a base and relative
+    struct rel_path
+    {
+        rel_path() noexcept = default;
+        rel_path(rel_path const&) noexcept = default;
+        rel_path(rel_path&&) noexcept = default;
+        rel_path(std::filesystem::path const& target, std::filesystem::path const& relativeTo = {}) noexcept
+            : relTo{ relativeTo }
+        {
+            set_real_path(target);
+        }
+        rel_path(relative_tag, std::filesystem::path const& target, std::filesystem::path const& relativeTo = {}) noexcept
+            : relTo{ relativeTo }
+        {
+            set_path(target);
+        }
+
+        rel_path& operator=(rel_path const&) noexcept = default;
+        rel_path& operator=(rel_path&&) noexcept = default;
+
+        std::filesystem::path path() const noexcept;
+        std::filesystem::path real_path() const noexcept;
+
+        void set_path(std::filesystem::path const&) noexcept;
+        void set_real_path(std::filesystem::path const&) noexcept;
+
+        std::filesystem::path relative_to() const noexcept;
+        void relative_to(std::filesystem::path const&) noexcept;
+
+    private:
+        std::filesystem::path realTarget;
+        std::filesystem::path relTo;
     };
 }
 
@@ -225,5 +262,19 @@ struct nlohmann::adl_serializer<std::filesystem::path>
     static void from_json(json const& j, path& p)
     {
         p = path{ j.get<std::string>() };
+    }
+};
+
+template<>
+struct nlohmann::adl_serializer<util::rel_path>
+{
+    using json = nlohmann::json;
+    static void to_json(json& j, util::rel_path const& p)
+    {
+        j = p.path().generic_string();
+    }
+    static void from_json(json const& j, util::rel_path& p)
+    {
+        p = util::rel_path{ j.get<std::filesystem::path>() };
     }
 };

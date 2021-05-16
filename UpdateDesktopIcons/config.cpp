@@ -9,19 +9,23 @@ void config::to_json(json& j, desktop_configuration const& config)
     j = json{
         {"index", config.index},
         {"guid", config.guid},
-        {"directory", config.real_directory.lexically_proximate(config.relative_base)}
+        {"path", config.real_directory}
     };
 }
 
 void config::from_json(json const& j, desktop_configuration& config)
 {
-    j.at("index").get_to(config.index);
+    auto index = j.find("index");
+    if (index != j.end())
+    {
+        index->get_to(config.index);
+    }
     auto guid = j.find("guid");
     if (guid != j.end())
     {
         guid->get_to(config.guid);
     }
-    j.at("directory").get_to(config.real_directory);
+    j.at("path").get_to(config.real_directory);
 }
 
 void config::to_json(json& j, configuration const& config)
@@ -39,7 +43,7 @@ void config::to_json(json& j, configuration const& config)
     j = json{
         {"version", 1},
         {"defaultDir", config.default_dir},
-        {"desktopMap", arr}
+        {"desktops", arr}
     };
 }
 
@@ -49,7 +53,7 @@ void config::from_json(json const& j, configuration& config)
         throw std::runtime_error("invalid version");
     j.at("defaultDir").get_to(config.default_dir);
 
-    for (auto const& el : j.at("desktopMap"))
+    for (auto const& el : j.at("desktops"))
     {
         auto desk = std::make_unique<desktop_configuration>();
         el.get_to(*desk);
@@ -57,18 +61,19 @@ void config::from_json(json const& j, configuration& config)
     }
 }
 
-void config::desktop_configuration::set_rel_base(std::filesystem::path const& relBase)
+void config::desktop_configuration::set_rel_base(std::filesystem::path const& relBase) noexcept
 {
-    auto realdir = std::move(real_directory);
-    auto oldRelbase = std::move(relative_base);
+    real_directory.relative_to(relBase);
+}
 
-    if (!oldRelbase.empty())
+void config::configuration::set_rel_base(std::filesystem::path const& relBase) noexcept
+{
+    default_dir.relative_to(relBase);
+
+    for (auto ref : *this)
     {
-        realdir = realdir.lexically_proximate(oldRelbase);
+        ref.in(this)->set_rel_base(relBase);
     }
-
-    relative_base = relBase;
-    real_directory = relBase / realdir;
 }
 
 void config::configuration::rebuild_maps() noexcept
@@ -132,12 +137,12 @@ void config::configuration::changed(ref value) noexcept
     byIndex.try_emplace(config->index, value);
 }
 
-desktop_configuration* config::configuration::get(std::size_t index, util::cell_ref_get_t)
+desktop_configuration* config::configuration::get(std::size_t index, util::cell_ref_get_tag)
 {
-    return const_cast<desktop_configuration*>(const_cast<configuration const*>(this)->get(index, util::cell_ref_get_t{}));
+    return const_cast<desktop_configuration*>(const_cast<configuration const*>(this)->get(index, util::cell_ref_get_tag{}));
 }
 
-desktop_configuration const* config::configuration::get(std::size_t index, util::cell_ref_get_t) const
+desktop_configuration const* config::configuration::get(std::size_t index, util::cell_ref_get_tag) const
 {
     if (index < storage.size())
     {

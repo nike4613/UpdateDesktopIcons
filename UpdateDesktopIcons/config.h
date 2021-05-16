@@ -17,18 +17,15 @@ namespace config
 
     struct desktop_configuration
     {
-        int index;
+        int index = -1;
         GUID guid;
 
-        std::filesystem::path real_directory;
+        util::rel_path real_directory;
 
-        void set_rel_base(std::filesystem::path const& relBase);
+        void set_rel_base(std::filesystem::path const& relBase) noexcept;
 
         friend void to_json(json&, desktop_configuration const&);
         friend void from_json(json const&, desktop_configuration&);
-    private:
-
-        std::filesystem::path relative_base; // this isn't serialized
     };
 
 
@@ -36,7 +33,10 @@ namespace config
     {
         using ref = util::cell_ref<configuration>;
 
-        std::filesystem::path default_dir; // TODO: make this a relpath
+        util::rel_path default_dir;
+
+        // also propagates change to desktop_configurations
+        void set_rel_base(std::filesystem::path const& relBase) noexcept;
 
         void rebuild_maps() noexcept;
         std::optional<ref> by_guid(GUID const& guid) const noexcept;
@@ -45,8 +45,8 @@ namespace config
         void remove(ref value) noexcept;
         void changed(ref value) noexcept;
 
-        desktop_configuration* get(std::size_t index, util::cell_ref_get_t);
-        desktop_configuration const* get(std::size_t index, util::cell_ref_get_t) const;
+        desktop_configuration* get(std::size_t index, util::cell_ref_get_tag);
+        desktop_configuration const* get(std::size_t index, util::cell_ref_get_tag) const;
         decltype(auto) operator[](ref val) { return val.in(this); }
         decltype(auto) operator[](ref val) const { return val.in(this); }
 
