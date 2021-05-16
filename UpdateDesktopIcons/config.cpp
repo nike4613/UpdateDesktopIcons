@@ -78,7 +78,15 @@ void config::configuration::set_rel_base(std::filesystem::path const& relBase) n
 
 void config::configuration::rebuild_maps() noexcept
 {
-    // TODO:
+    byGuid.clear();
+    byIndex.clear();
+
+    for (auto ref : *this)
+    {
+        auto desk = ref.in(this);
+        byGuid.try_emplace(desk->guid, ref);
+        byIndex.try_emplace(desk->index, ref);
+    }
 }
 
 auto config::configuration::by_guid(GUID const& guid) const noexcept -> std::optional<ref>
