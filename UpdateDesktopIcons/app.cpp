@@ -50,7 +50,14 @@ void app::Application::initialize()
 
     ownNotifReg = com::register_virtual_desktop_notification(vdnotifService, this);
 
-    explorerTracker = std::make_unique<explore::explorer_tracker>([this] { try { this->reinitialize(); } CATCH_LOG(); });
+    if (!explorerTracker)
+    { // don't recreate the tracker on reinitialize
+        explorerTracker = std::make_unique<explore::explorer_tracker>([this] { try { this->reinitialize(); } CATCH_LOG(); });
+    }
+
+    wil::com_ptr<IObjectArray> desktops;
+    THROW_IF_FAILED(vdeskManager->GetDesktops(&desktops));
+    match_config_to_desktops(desktops.get());
 
     wil::com_ptr<IVirtualDesktop> current;
     THROW_IF_FAILED(vdeskManager->GetCurrentDesktop(&current));
@@ -73,7 +80,50 @@ void app::Application::reinitialize()
     initialize();
 }
 
-void app::Application::changed_to_desktop(GUID const&)
+void app::Application::match_config_to_desktops(IObjectArray* vdesks)
+{
+    auto const& [_lock, config] = this->config.lock();
+
+    for (auto ref : *config)
+    {
+        ref.in(config)->removed = true;
+    }
+
+    UINT count;
+    THROW_IF_FAILED(vdesks->GetCount(&count));
+    for (UINT i = 0; i < count; i++)
+    {
+        wil::com_ptr<IVirtualDesktop> desk;
+        THROW_IF_FAILED(vdesks->GetAt(i, IID_IVirtualDesktop, desk.put_void()));
+
+        GUID guid;
+        THROW_IF_FAILED(desk->GetID(&guid));
+
+        if (auto dconf = config->by_guid(guid); dconf)
+        {
+            auto conf = dconf->in(config);
+            conf->index = i;
+            conf->removed = false;
+            config->changed(*dconf);
+        }
+        else if (auto dconf = config->by_index(i); dconf && dconf->in(config)->guid == GUID{})
+        { // only set guid if it hasn't already been set
+            auto conf = dconf->in(config);
+            conf->guid = guid;
+            conf->removed = false;
+            config->changed(*dconf);
+        }
+        else
+        {
+            // this desktop isn't mapped
+            continue;
+        }
+    }
+
+    config_updated();
+}
+
+void app::Application::changed_to_desktop(GUID const& guid)
 {
     // TODO: de-bounce, then call do_update_desktop
 }

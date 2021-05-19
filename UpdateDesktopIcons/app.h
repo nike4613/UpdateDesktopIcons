@@ -32,6 +32,8 @@ namespace app
     private:
         void reinitialize();
 
+        void match_config_to_desktops(IObjectArray* vdesks);
+
         void changed_to_desktop(GUID const&);
         void do_update_desktop(GUID const&);
         void config_updated();
