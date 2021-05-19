@@ -159,3 +159,13 @@ desktop_configuration const* config::configuration::get(std::size_t index, util:
 
     return nullptr;
 }
+
+configuration const& config::config_store::get() const
+{
+    return config;
+}
+
+std::pair<std::unique_lock<std::mutex>, configuration*> config::config_store::lock()
+{
+    return std::pair(std::unique_lock(mutex), &config);
+}

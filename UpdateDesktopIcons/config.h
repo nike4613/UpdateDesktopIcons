@@ -135,4 +135,13 @@ namespace config
         //static_assert(std::bidirectional_iterator<iterator>, "fix yer iterator idiot");
     };
 
+    struct config_store
+    {
+        configuration const& get() const;
+        std::pair<std::unique_lock<std::mutex>, configuration*> lock();
+    private:
+        std::mutex mutex;
+        configuration config;
+    };
+
 }
