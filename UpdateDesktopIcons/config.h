@@ -22,6 +22,8 @@ namespace config
 
         util::rel_path real_directory;
 
+        bool removed;
+
         void set_rel_base(std::filesystem::path const& relBase) noexcept;
 
         friend void to_json(json&, desktop_configuration const&);
@@ -137,6 +139,12 @@ namespace config
 
     struct config_store
     {
+        config_store() noexcept = default;
+        config_store(configuration const& conf) noexcept
+            : config{ conf } {}
+        config_store(configuration&& conf) noexcept
+            : config{ std::move(conf) } {}
+
         configuration const& get() const;
         std::pair<std::unique_lock<std::mutex>, configuration*> lock();
     private:

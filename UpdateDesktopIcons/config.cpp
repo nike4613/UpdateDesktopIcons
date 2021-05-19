@@ -11,19 +11,26 @@ void config::to_json(json& j, desktop_configuration const& config)
         {"guid", config.guid},
         {"path", config.real_directory}
     };
+
+    if (config.removed)
+    {
+        j["removed"] = true;
+    }
 }
 
 void config::from_json(json const& j, desktop_configuration& config)
 {
-    auto index = j.find("index");
-    if (index != j.end())
+    if (auto index = j.find("index"); index != j.end())
     {
         index->get_to(config.index);
     }
-    auto guid = j.find("guid");
-    if (guid != j.end())
+    if (auto guid = j.find("guid"); guid != j.end())
     {
         guid->get_to(config.guid);
+    }
+    if (auto removed = j.find("removed"); removed != j.end())
+    {
+        removed->get_to(config.removed);
     }
     j.at("path").get_to(config.real_directory);
 }
