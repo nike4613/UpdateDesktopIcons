@@ -167,12 +167,12 @@ desktop_configuration const* config::configuration::get(std::size_t index, util:
     return nullptr;
 }
 
-configuration const& config::config_store::get() const
+auto config::config_store::get() const -> std::pair<std::shared_lock<mutex_type>, configuration const*>
 {
-    return config;
+    return std::pair(std::shared_lock(mutex), &config);
 }
 
-std::pair<std::unique_lock<std::mutex>, configuration*> config::config_store::lock()
+auto config::config_store::lock() -> std::pair<std::unique_lock<mutex_type>, configuration*>
 {
     return std::pair(std::unique_lock(mutex), &config);
 }

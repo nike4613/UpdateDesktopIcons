@@ -86,6 +86,18 @@ cpp_quote("    THROW_IF_FAILED(service->Register(handler.get(), &registration));
 cpp_quote("    return registration;")
 cpp_quote("}")
 cpp_quote("")
+cpp_quote("extern \"C++\"") // I don't actually know why this is needed; but the compiler fails otherwise
+cpp_quote("template<typename Policy>")
+cpp_quote("unique_notification_registration register_virtual_desktop_notification(")
+cpp_quote("             ::wil::com_ptr_t<IVirtualDesktopNotificationService, Policy> const& service,")
+cpp_quote("             IVirtualDesktopNotification* handler)")
+cpp_quote("{")
+cpp_quote("    unique_notification_registration registration{ service.get() };")
+cpp_quote("    THROW_IF_FAILED(service->Register(handler, &registration));") // TODO: make this depend on policy somehow
+cpp_quote("    return registration;")
+cpp_quote("}")
+cpp_quote("")
+cpp_quote("")
 cpp_quote("}")
 cpp_quote("#endif")
 

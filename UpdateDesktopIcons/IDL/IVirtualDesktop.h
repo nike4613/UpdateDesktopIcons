@@ -666,6 +666,18 @@ unique_notification_registration register_virtual_desktop_notification(
     return registration;
 }
 
+extern "C++"
+template<typename Policy>
+unique_notification_registration register_virtual_desktop_notification(
+             ::wil::com_ptr_t<IVirtualDesktopNotificationService, Policy> const& service,
+             IVirtualDesktopNotification* handler)
+{
+    unique_notification_registration registration{ service.get() };
+    THROW_IF_FAILED(service->Register(handler, &registration));
+    return registration;
+}
+
+
 }
 #endif
 

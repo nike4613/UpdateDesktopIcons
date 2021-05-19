@@ -20,9 +20,7 @@ namespace com
             auto operator()(Args&& ...args) const
             {
                 auto rawPtr = winrt::make<T>(std::forward<Args>(args)...).detach();
-                using U = std::pointer_traits<decltype(rawPtr)>::element_type;
-                wil::com_ptr_t<U, Policy> ptr;
-                ptr.attach(rawPtr);
+                wil::com_ptr_t<T, Policy> ptr{ static_cast<T*>(rawPtr) };
                 return ptr;
             }
         };

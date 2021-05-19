@@ -4,6 +4,7 @@
 #include <memory>
 #include <unordered_map>
 #include <optional>
+#include <shared_mutex>
 
 #include <nlohmann/json.hpp>
 
@@ -145,10 +146,11 @@ namespace config
         config_store(configuration&& conf) noexcept
             : config{ std::move(conf) } {}
 
-        configuration const& get() const;
-        std::pair<std::unique_lock<std::mutex>, configuration*> lock();
+        using mutex_type = std::shared_mutex;
+        std::pair<std::shared_lock<mutex_type>, configuration const*> get() const;
+        std::pair<std::unique_lock<mutex_type>, configuration*> lock();
     private:
-        std::mutex mutex;
+        mutable mutex_type mutex;
         configuration config;
     };
 

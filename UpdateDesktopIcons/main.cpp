@@ -6,6 +6,7 @@
 #include "explore.h"
 #include "util.h"
 #include "config.h"
+#include "app.h"
 
 void do_read(std::wstring_view folderName)
 {
@@ -112,7 +113,7 @@ void do_watch_vdesk()
     };
 
     auto reciever = VDNotifReciever::make(vdesktopObjOwner, indexMap);
-    auto cookie = com::register_virtual_desktop_notification(vdnotifService, reciever);
+    auto cookie = com::register_virtual_desktop_notification(vdnotifService, reciever.query<IVirtualDesktopNotification>());
 
     fmt::print(L"Now printing all virtual desktop changes.\n");
     fmt::print(L"Press enter to exit.\n");
@@ -127,6 +128,18 @@ void do_explore()
     tracker.start_tracking();
     fmt::print(L"Press enter to exit.\n");
     auto unused = getc(stdin);
+}
+
+void do_app()
+{
+    // TODO: read config
+    auto application = app::Application::make(config::configuration{});
+
+    fmt::print(L"Running application.\n");
+    application->initialize();
+    fmt::print(L"Press enter to exit.\n");
+    auto unused = getc(stdin);
+    application->shutdown();
 }
 
 int wmain(int argc, wchar_t const* const* argv) try
@@ -200,6 +213,7 @@ int wmain(int argc, wchar_t const* const* argv) try
         fmt::print(stderr, FMT_STRING(L"Usage: {} <folder to operate on> [<new target>]\r\n"), args[0]);
         fmt::print(stderr, FMT_STRING(L"       {} vdesk\r\n"), args[0]);
         fmt::print(stderr, FMT_STRING(L"       {} explore\r\n"), args[0]);
+        fmt::print(stderr, FMT_STRING(L"       {} app\r\n"), args[0]);
         return -1;
     }
 
@@ -212,6 +226,10 @@ int wmain(int argc, wchar_t const* const* argv) try
         else if (std::wstring_view{ args[1] } == std::wstring_view{ L"explore" })
         {
             do_explore();
+        }
+        else if (std::wstring_view{ args[1] } == std::wstring_view{ L"app" })
+        {
+            do_app();
         }
         else
         {
