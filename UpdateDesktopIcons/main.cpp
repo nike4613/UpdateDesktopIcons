@@ -111,7 +111,7 @@ void do_watch_vdesk()
         CATCH_RETURN();
     };
 
-    auto reciever = VDNotifReciever::make<>(vdesktopObjOwner, indexMap);
+    auto reciever = VDNotifReciever::make(vdesktopObjOwner, indexMap);
     auto cookie = com::register_virtual_desktop_notification(vdnotifService, reciever);
 
     fmt::print(L"Now printing all virtual desktop changes.\n");

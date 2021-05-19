@@ -28,6 +28,7 @@ namespace com
         };
     public:
         template<typename Policy = wil::err_exception_policy>
-        static constexpr auto make = make_impl<Policy>{};
+        static constexpr auto make_p = make_impl<Policy>{};
+        static constexpr auto make = make_p<>;
     };
 }
