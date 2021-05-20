@@ -42,6 +42,11 @@ reparse::reparse_folder::reparse_folder(std::wstring_view path, bool readonly)
     file = try_get_file_handle(pathData.size() != 0 ? std::wstring_view{ pathData } : path, readonly);
 }
 
+reparse::reparse_folder::reparse_folder(std::filesystem::path const& path, bool readonly)
+{
+    file = try_get_file_handle(path.native(), readonly);
+}
+
 reparse::reparse_folder::reparse_folder(wil::unique_handle&& handle) noexcept
     : file{std::move(handle)}
 {
@@ -159,7 +164,7 @@ reparse::reparse_folder::junction_target reparse::reparse_folder::get_junction_t
     };
 }
 
-DWORD reparse::reparse_folder::get_reparse_buffer(_Out_ REPARSE_GUID_DATA_BUFFER* buffer, DWORD bufferSize, bool throwIfTooSmall)
+auto reparse::reparse_folder::get_reparse_buffer(_Out_ REPARSE_GUID_DATA_BUFFER* buffer, DWORD bufferSize, bool throwIfTooSmall) -> DWORD
 {
     DWORD read;
     if (throwIfTooSmall)
