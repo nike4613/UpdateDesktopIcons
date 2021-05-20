@@ -36,6 +36,7 @@ namespace config
     {
         using ref = util::cell_ref<configuration>;
 
+        std::filesystem::path config_file;
         util::rel_path default_dir;
 
         // also propagates change to desktop_configurations

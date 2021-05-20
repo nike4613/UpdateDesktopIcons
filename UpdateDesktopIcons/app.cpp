@@ -4,8 +4,17 @@
 
 #include <shlobj_core.h>
 
-HRESULT STDMETHODCALLTYPE app::Application::VirtualDesktopCreated(IVirtualDesktop*) noexcept
+#include <fstream>
+
+#include <nlohmann/json.hpp>
+
+HRESULT STDMETHODCALLTYPE app::Application::VirtualDesktopCreated(IVirtualDesktop* desktop) noexcept
 {
+    GUID guid;
+    RETURN_IF_FAILED(desktop->GetID(&guid));
+
+    fmt::print(FMT_STRING("Created {}\n"), guid);
+
     return S_OK;
 }
 
@@ -24,17 +33,38 @@ HRESULT STDMETHODCALLTYPE app::Application::ViewVirtualDesktopChanged(IUnknown*)
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE app::Application::VirtualDesktopDestroyed(IVirtualDesktop* destroyed, IVirtualDesktop*) noexcept
+HRESULT STDMETHODCALLTYPE app::Application::VirtualDesktopDestroyed(IVirtualDesktop* destroyed, IVirtualDesktop*) noexcept try
 {
-    // TODO: do something with the config
+    GUID guid;
+    RETURN_IF_FAILED(destroyed->GetID(&guid));
+
+    fmt::print(FMT_STRING("Destroyed {}\n"), guid);
+
+    bool modified = false;
+    {
+        auto const& [_lock, config] = this->config.lock(); // we write to the config
+
+        if (auto opt = config->by_guid(guid); opt)
+        {
+            auto desk = opt->in(config);
+            desk->removed = true; // flag the entry as being removed
+            modified = true;
+        }
+    }
+
+    if (modified)
+    {
+        config_updated();
+    }
 
     return S_OK;
 }
+CATCH_RETURN();
 
 HRESULT STDMETHODCALLTYPE app::Application::CurrentVirtualDesktopChanged(IVirtualDesktop*, IVirtualDesktop* pDesktopNew) noexcept try
 {
     GUID guid;
-    THROW_IF_FAILED(pDesktopNew->GetID(&guid));
+    RETURN_IF_FAILED(pDesktopNew->GetID(&guid));
 
     changed_to_desktop(guid);
 
@@ -86,41 +116,43 @@ void app::Application::reinitialize()
 
 void app::Application::match_config_to_desktops(IObjectArray* vdesks)
 {
-    auto const& [_lock, config] = this->config.lock(); // because we write to the config
-
-    for (auto ref : *config)
     {
-        ref.in(config)->removed = true;
-    }
+        auto const& [_lock, config] = this->config.lock(); // because we write to the config
 
-    UINT count;
-    THROW_IF_FAILED(vdesks->GetCount(&count));
-    for (UINT i = 0; i < count; i++)
-    {
-        wil::com_ptr<IVirtualDesktop> desk;
-        THROW_IF_FAILED(vdesks->GetAt(i, IID_IVirtualDesktop, desk.put_void()));
-
-        GUID guid;
-        THROW_IF_FAILED(desk->GetID(&guid));
-
-        if (auto dconf = config->by_guid(guid); dconf)
+        for (auto ref : *config)
         {
-            auto conf = dconf->in(config);
-            conf->index = i;
-            conf->removed = false;
-            config->changed(*dconf);
+            ref.in(config)->removed = true;
         }
-        else if (auto dconf = config->by_index(i); dconf && dconf->in(config)->guid == GUID{})
-        { // only set guid if it hasn't already been set
-            auto conf = dconf->in(config);
-            conf->guid = guid;
-            conf->removed = false;
-            config->changed(*dconf);
-        }
-        else
+
+        UINT count;
+        THROW_IF_FAILED(vdesks->GetCount(&count));
+        for (UINT i = 0; i < count; i++)
         {
-            // this desktop isn't mapped
-            continue;
+            wil::com_ptr<IVirtualDesktop> desk;
+            THROW_IF_FAILED(vdesks->GetAt(i, IID_IVirtualDesktop, desk.put_void()));
+
+            GUID guid;
+            THROW_IF_FAILED(desk->GetID(&guid));
+
+            if (auto dconf = config->by_guid(guid); dconf)
+            {
+                auto conf = dconf->in(config);
+                conf->index = i;
+                conf->removed = false;
+                config->changed(*dconf);
+            }
+            else if (auto dconf = config->by_index(i); dconf && dconf->in(config)->guid == GUID{})
+            { // only set guid if it hasn't already been set
+                auto conf = dconf->in(config);
+                conf->guid = guid;
+                conf->removed = false;
+                config->changed(*dconf);
+            }
+            else
+            {
+                // this desktop isn't mapped
+                continue;
+            }
         }
     }
 
@@ -211,5 +243,10 @@ void app::Application::do_update_desktop(GUID const& guid)
 
 void app::Application::config_updated()
 {
-    // TODO: save updated config
+    // TODO: pull this file writing somewhere else
+    auto const& [_lock, config] = this->config.get();
+    std::ofstream fconfig(config->config_file);
+    fconfig << nlohmann::json(*config).dump(2);
+    fconfig.flush();
+    fconfig.close();
 }

@@ -59,6 +59,7 @@ config::configuration app::maybe_first_setup(std::filesystem::path const& deskto
             config = get_default_config(configFolder);
             fs::create_directories(config.default_dir.real_path());
         }
+        config.config_file = configPath;
         return config;
     }
     
@@ -99,5 +100,6 @@ config::configuration app::maybe_first_setup(std::filesystem::path const& deskto
         }
     }
 
+    config.config_file = configPath;
     return config;
 }
