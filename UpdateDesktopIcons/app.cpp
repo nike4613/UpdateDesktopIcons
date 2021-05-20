@@ -125,11 +125,45 @@ void app::Application::match_config_to_desktops(IObjectArray* vdesks)
 
 void app::Application::changed_to_desktop(GUID const& guid)
 {
-    // TODO: de-bounce, then call do_update_desktop
+    using namespace std::chrono_literals;
+
+    fmt::print(FMT_STRING("Desktop changed to {}\n"), guid);
+
+    std::promise<std::pair<GUID, std::chrono::system_clock::time_point>> promise; // reset our promise
+    promise.set_value({ guid, std::chrono::system_clock::now() + 500ms });
+    updatePromise = promise.get_future().share();
+
+    if (!updateAsync.valid() || updateAsync.wait_for(0ms) == std::future_status::ready)
+    {
+        updateAsync = std::async(std::launch::async,
+        [this]()
+        {
+            try
+            {
+                GUID guid{};
+                GUID guid2{};
+                auto future = updatePromise;
+                auto result = future.get();
+                do
+                {
+                    std::this_thread::sleep_until(result.second);
+                    future = updatePromise;
+                    result = future.get();
+                    guid2 = guid;
+                    guid = result.first;
+                } while (guid != guid2);
+
+                // we know konw our guid, and have debounced
+                do_update_desktop(guid);
+            }
+            CATCH_LOG();
+        });
+    }
 }
 
 void app::Application::do_update_desktop(GUID const& guid)
 {
+    fmt::print(FMT_STRING("Updating desktop {}\n"), guid);
     // TODO: change desktop target
 }
 

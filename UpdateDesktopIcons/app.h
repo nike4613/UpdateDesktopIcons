@@ -1,5 +1,10 @@
 #pragma once
 
+#include <chrono>
+#include <future>
+#include <optional>
+#include <utility>
+
 #include <wil/com.h>
 
 #include "com.h"
@@ -42,7 +47,9 @@ namespace app
 
         com::unique_notification_registration ownNotifReg;
         wil::com_ptr<IVirtualDesktopManagerInternal> vdeskManager;
-        //explore::explorer_tracker explorerTracker{ [this] { try { this->reinitialize(); } CATCH_LOG(); } };
         std::unique_ptr<explore::explorer_tracker> explorerTracker; // a unique pointer specifically so it isn't running until initialize/after shutdown
+
+        std::shared_future<std::pair<GUID, std::chrono::system_clock::time_point>> updatePromise;
+        std::future<void> updateAsync;
     };
 }
