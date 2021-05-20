@@ -23,9 +23,9 @@ namespace app
     {
         // TODO: implement config reloading
         Application(config::configuration const& configuration, std::filesystem::path const& desktopPath) noexcept
-            : config{ configuration }, desktopPath{ desktopPath } {}
+            : config{ configuration }, desktopPath{ std::filesystem::absolute(desktopPath) } {}
         Application(config::configuration&& configuration, std::filesystem::path const& desktopPath) noexcept
-            : config{ std::move(configuration) }, desktopPath{ desktopPath } {}
+            : config{ std::move(configuration) }, desktopPath{ std::filesystem::absolute(desktopPath) } {}
 
         HRESULT STDMETHODCALLTYPE VirtualDesktopCreated(IVirtualDesktop*) noexcept override;
         HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyBegin(IVirtualDesktop* destroyed, IVirtualDesktop* fallback) noexcept override;

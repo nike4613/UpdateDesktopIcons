@@ -2,6 +2,8 @@
 #include "app.h"
 #include "IVirtualDesktop.h"
 
+#include <shlobj_core.h>
+
 HRESULT STDMETHODCALLTYPE app::Application::VirtualDesktopCreated(IVirtualDesktop*) noexcept
 {
     return S_OK;
@@ -42,6 +44,8 @@ CATCH_RETURN();
 
 void app::Application::initialize()
 {
+    reparse::set_needed_privilege();
+
     auto shell = wil::CoCreateInstance<CImmersiveShell, IServiceProvider>(CLSCTX_LOCAL_SERVER); // local server because its hosted in explorer.exe
     THROW_IF_FAILED(shell->QueryService<IVirtualDesktopManagerInternal>(CLSID_CVirtualDesktopManagerInternal, &vdeskManager));
 
@@ -82,7 +86,7 @@ void app::Application::reinitialize()
 
 void app::Application::match_config_to_desktops(IObjectArray* vdesks)
 {
-    auto const& [_lock, config] = this->config.lock();
+    auto const& [_lock, config] = this->config.lock(); // because we write to the config
 
     for (auto ref : *config)
     {
@@ -165,8 +169,44 @@ void app::Application::changed_to_desktop(GUID const& guid)
 
 void app::Application::do_update_desktop(GUID const& guid)
 {
+    namespace fs = std::filesystem;
+
     fmt::print(FMT_STRING("Updating desktop {}\n"), guid);
-    // TODO: change desktop target
+
+    // figure out what target to set
+    fs::path targetPath;
+    {
+        auto const& [_lock, config] = this->config.get(); // we only read from the config
+
+        if (auto opt = config->by_guid(guid); opt)
+        {
+            // we found a decl for it
+            auto deskCfg = opt->in(config);
+
+            targetPath = deskCfg->real_directory.real_path();
+        }
+        else
+        {
+            // we don't have a decl for it, use the default
+            targetPath = config->default_dir.real_path();
+        }
+    }
+
+    {
+        // open desktop handle
+        reparse::reparse_folder desktop{ this->desktopPath, /* readonly */ false };
+
+        auto reparseTargetPath = fs::absolute(targetPath).native();
+        desktop.set_junction_target(L"\\??\\" + reparseTargetPath, reparseTargetPath);
+    }
+
+    // perform a change notify
+    SHChangeNotify(
+        SHCNE_UPDATEDIR,
+        SHCNF_PATH,
+        fs::absolute(this->desktopPath).native().c_str(),
+        nullptr
+    );
 }
 
 void app::Application::config_updated()

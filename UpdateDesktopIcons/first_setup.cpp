@@ -50,6 +50,7 @@ config::configuration app::maybe_first_setup(std::filesystem::path const& deskto
             fconfig.close();
             json.get_to(config);
             config.set_rel_base(configFolder);
+            config.rebuild_maps();
         }
         catch (...)
         {
