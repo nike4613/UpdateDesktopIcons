@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "app.h"
+#include "priv.h"
 #include "IVirtualDesktop.h"
+#include "util.h"
 
 #include <shlobj_core.h>
 
@@ -72,9 +74,17 @@ HRESULT STDMETHODCALLTYPE app::Application::CurrentVirtualDesktopChanged(IVirtua
 }
 CATCH_RETURN();
 
+namespace fs = std::filesystem;
+
 void app::Application::initialize()
 {
     reparse::set_needed_privilege();
+
+    { // set our own priviledges
+        priv::context ctx;
+        ctx.enable(SE_BACKUP_NAME);
+        ctx.enable(SE_RESTORE_NAME);
+    }
 
     auto shell = wil::CoCreateInstance<CImmersiveShell, IServiceProvider>(CLSCTX_LOCAL_SERVER); // local server because its hosted in explorer.exe
     THROW_IF_FAILED(shell->QueryService<IVirtualDesktopManagerInternal>(CLSID_CVirtualDesktopManagerInternal, &vdeskManager));
@@ -199,16 +209,23 @@ void app::Application::changed_to_desktop(GUID const& guid)
     }
 }
 
+namespace
+{
+    void save_reg_value(HKEY key, wchar_t const* valueName, fs::path const& file);
+    void load_reg_value(HKEY key, wchar_t const* valueName, DWORD type, fs::path const& file);
+}
+
 void app::Application::do_update_desktop(GUID const& guid)
 {
-    namespace fs = std::filesystem;
-
     fmt::print(FMT_STRING("Updating desktop {}\n"), guid);
 
     // figure out what target to set
     fs::path targetPath;
+    fs::path configDir;
     {
         auto const& [_lock, config] = this->config.get(); // we only read from the config
+
+        configDir = config->config_file.parent_path();
 
         if (auto opt = config->by_guid(guid); opt)
         {
@@ -224,13 +241,34 @@ void app::Application::do_update_desktop(GUID const& guid)
         }
     }
 
-    {
-        // open desktop handle
+    { // set junction target
         reparse::reparse_folder desktop{ this->desktopPath, /* readonly */ false };
 
         auto reparseTargetPath = fs::absolute(targetPath).native();
         desktop.set_junction_target(L"\\??\\" + reparseTargetPath, reparseTargetPath);
     }
+
+    if (lastDesktop != GUID{} && lastDesktop != guid)
+    { // try to save/restore desktop registry keys
+        try
+        {
+            auto getFilen = [](GUID const& guid) { return fmt::format(FMT_STRING(L"{0:b}"), guid); };
+
+            auto oldFile = configDir / getFilen(lastDesktop);
+            auto newFile = configDir / getFilen(guid);
+
+            // FIXME: this doesn't actually work, I think because the desktop is overwriting it
+            wil::unique_hkey regKey;
+            THROW_IF_WIN32_ERROR(RegOpenKeyExW(HKEY_CURRENT_USER, L"SOFTWARE\\Microsoft\\Windows\\Shell\\Bags\\1\\Desktop", 0, KEY_READ | KEY_WRITE, &regKey));
+            save_reg_value(regKey.get(), L"IconLayouts", oldFile);
+            if (fs::exists(newFile))
+            {
+                load_reg_value(regKey.get(), L"IconLayouts", REG_BINARY, newFile);
+            }
+        }
+        CATCH_LOG();
+    }
+    lastDesktop = guid;
 
     // perform a change notify
     SHChangeNotify(
@@ -240,6 +278,37 @@ void app::Application::do_update_desktop(GUID const& guid)
         nullptr
     );
 }
+
+namespace
+{
+    void save_reg_value(HKEY key, wchar_t const* valueName, fs::path const& file)
+    {
+        DWORD size;
+        THROW_IF_WIN32_ERROR(RegQueryValueExW(key, valueName, nullptr, nullptr, nullptr, &size));
+        auto data = std::make_unique<std::byte[]>(size);
+        THROW_IF_WIN32_ERROR(RegQueryValueExW(key, valueName, nullptr, nullptr, (LPBYTE)data.get(), &size));
+
+        std::ofstream ofile(file, std::ios::out | std::ios::binary);
+        ofile.write(reinterpret_cast<char const*>(&data[0]), size);
+        ofile.flush();
+        ofile.close();
+    }
+
+    void load_reg_value(HKEY key, wchar_t const* valueName, DWORD type, fs::path const& file)
+    {
+        std::size_t size;
+        std::unique_ptr<std::byte[]> data;
+        {
+            std::ifstream ifile(file, std::ios::in | std::ios::binary);
+            size = ifile.seekg(0, std::ios::end).tellg();
+            data = std::make_unique<std::byte[]>(size);
+            ifile.seekg(0, std::ios::beg).read(reinterpret_cast<char*>(&data[0]), size);
+        }
+
+        THROW_IF_WIN32_ERROR(RegSetValueExW(key, valueName, 0, type, (LPBYTE)data.get(), size));
+    }
+}
+
 
 void app::Application::config_updated()
 {

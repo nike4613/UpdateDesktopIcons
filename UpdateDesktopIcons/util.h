@@ -144,7 +144,7 @@ namespace util
 }
 
 template<>
-struct fmt::formatter<GUID>
+struct fmt::formatter<GUID, char>
 {
     bool useBraces = true;
 
@@ -190,6 +190,55 @@ struct fmt::formatter<GUID>
                     guid.Data1, guid.Data2, guid.Data3,
                     guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
                     guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
+    }
+};
+template<>
+struct fmt::formatter<GUID, wchar_t>
+{
+    bool useBraces = true;
+
+    constexpr auto parse(wformat_parse_context& ctx)
+    {
+        auto begin = ctx.begin(), end = ctx.end();
+        if (begin == nullptr)
+            return begin;
+
+        if (*begin == L'b')
+        {
+            useBraces = true;
+            ++begin;
+        }
+        else if (*begin == L'e')
+        {
+            useBraces = false;
+            ++begin;
+        }
+
+        if (*begin != L'}')
+            throw fmt::format_error("invalid format string");
+
+        return begin;
+    }
+
+    template <typename FormatContext>
+    constexpr auto format(GUID const& guid, FormatContext& ctx)
+    {
+        // auto format(const point &p, FormatContext &ctx) -> decltype(ctx.out()) // c++11
+          // ctx.out() is an output iterator to write to. 
+        return
+            useBraces
+            ? format_to(
+                ctx.out(),
+                FMT_COMPILE(L"{{{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}}}"),
+                guid.Data1, guid.Data2, guid.Data3,
+                guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
+                guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7])
+            : format_to(
+                ctx.out(),
+                FMT_COMPILE(L"{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}"),
+                guid.Data1, guid.Data2, guid.Data3,
+                guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
+                guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
     }
 };
 

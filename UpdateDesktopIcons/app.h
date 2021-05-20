@@ -46,6 +46,8 @@ namespace app
         void do_update_desktop(GUID const&);
         void config_updated();
 
+        GUID lastDesktop{};
+
         config::config_store config;
         std::filesystem::path desktopPath;
 
