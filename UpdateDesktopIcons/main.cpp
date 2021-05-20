@@ -191,6 +191,7 @@ int wmain(int argc, wchar_t const* const* argv) try
     auto conf2 = conf1j.get<config::configuration>();
     */
 
+    /*
     using namespace nlohmann;
     auto config = R"(
 {
@@ -210,6 +211,7 @@ int wmain(int argc, wchar_t const* const* argv) try
 
     auto config2 = config;
     fmt::print(FMT_STRING("{}\n"), json(config2).dump(2));
+    */
 
     if (args.size() < 2 || args.size() > 4)
     {
