@@ -129,6 +129,8 @@ void app::Application::changed_to_desktop(GUID const& guid)
 
     fmt::print(FMT_STRING("Desktop changed to {}\n"), guid);
 
+    // FIXME: I am almost certain there is a better way to do this
+
     std::promise<std::pair<GUID, std::chrono::system_clock::time_point>> promise; // reset our promise
     promise.set_value({ guid, std::chrono::system_clock::now() + 500ms });
     updatePromise = promise.get_future().share();

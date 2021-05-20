@@ -130,10 +130,13 @@ void do_explore()
     auto unused = getc(stdin);
 }
 
-void do_app()
+void do_app(std::wstring_view deskPath, std::wstring_view cfgPath)
 {
-    // TODO: read config
-    auto application = app::Application::make(config::configuration{});
+    namespace fs = std::filesystem;
+
+    auto config = app::maybe_first_setup(fs::absolute(deskPath), fs::absolute(cfgPath));
+
+    auto application = app::Application::make(config, deskPath);
 
     fmt::print(L"Running application.\n");
     application->initialize();
@@ -208,12 +211,12 @@ int wmain(int argc, wchar_t const* const* argv) try
     auto config2 = config;
     fmt::print(FMT_STRING("{}\n"), json(config2).dump(2));
 
-    if (args.size() < 2)
+    if (args.size() < 2 || args.size() > 4)
     {
         fmt::print(stderr, FMT_STRING(L"Usage: {} <folder to operate on> [<new target>]\r\n"), args[0]);
         fmt::print(stderr, FMT_STRING(L"       {} vdesk\r\n"), args[0]);
         fmt::print(stderr, FMT_STRING(L"       {} explore\r\n"), args[0]);
-        fmt::print(stderr, FMT_STRING(L"       {} app\r\n"), args[0]);
+        fmt::print(stderr, FMT_STRING(L"       {} app <desktop folder> <config folder>\r\n"), args[0]);
         return -1;
     }
 
@@ -227,18 +230,25 @@ int wmain(int argc, wchar_t const* const* argv) try
         {
             do_explore();
         }
-        else if (std::wstring_view{ args[1] } == std::wstring_view{ L"app" })
-        {
-            do_app();
-        }
         else
         {
             do_read(args[1]);
         }
     }
-    else if (args.size() >= 3)
+    else if (args.size() == 3)
     {
         do_write(args[1], args[2]);
+    }
+    else if (args.size() == 4)
+    {
+        if (std::wstring_view{ args[1] } == std::wstring_view{ L"app" })
+        {
+            do_app(args[2], args[3]);
+        }
+        else
+        {
+            fmt::print(stderr, FMT_STRING("must provide 2 arguments"));
+        }
     }
 
     return 0;

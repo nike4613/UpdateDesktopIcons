@@ -3,12 +3,14 @@
 #include <wil/com.h>
 #include <wil/result.h>
 
+#define WINRT_NO_MAKE_DETECTION
 #include <winrt/base.h>
 
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Storage.h>
 
+#define NOMINMAX
 #include <Windows.h>
 #undef min
 #undef max

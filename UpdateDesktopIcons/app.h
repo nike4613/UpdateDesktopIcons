@@ -4,6 +4,7 @@
 #include <future>
 #include <optional>
 #include <utility>
+#include <filesystem>
 
 #include <wil/com.h>
 
@@ -16,13 +17,15 @@
 
 namespace app
 {
+    config::configuration maybe_first_setup(std::filesystem::path const& desktop, std::filesystem::path const& configFolder);
+
     struct Application : com::object<Application, IVirtualDesktopNotification>
     {
         // TODO: implement config reloading
-        Application(config::configuration const& configuration) noexcept
-            : config{ configuration } {}
-        Application(config::configuration&& configuration) noexcept
-            : config{ std::move(configuration) } {}
+        Application(config::configuration const& configuration, std::filesystem::path const& desktopPath) noexcept
+            : config{ configuration }, desktopPath{ desktopPath } {}
+        Application(config::configuration&& configuration, std::filesystem::path const& desktopPath) noexcept
+            : config{ std::move(configuration) }, desktopPath{ desktopPath } {}
 
         HRESULT STDMETHODCALLTYPE VirtualDesktopCreated(IVirtualDesktop*) noexcept override;
         HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyBegin(IVirtualDesktop* destroyed, IVirtualDesktop* fallback) noexcept override;
@@ -44,6 +47,7 @@ namespace app
         void config_updated();
 
         config::config_store config;
+        std::filesystem::path desktopPath;
 
         com::unique_notification_registration ownNotifReg;
         wil::com_ptr<IVirtualDesktopManagerInternal> vdeskManager;
