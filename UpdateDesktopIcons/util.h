@@ -151,6 +151,9 @@ struct fmt::formatter<GUID>
     constexpr auto parse(format_parse_context& ctx)
     {
         auto begin = ctx.begin(), end = ctx.end();
+        if (begin == nullptr)
+            return begin;
+
         if (*begin == 'b')
         {
             useBraces = true;
